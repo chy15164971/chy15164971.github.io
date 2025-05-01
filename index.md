@@ -1,6 +1,6 @@
 Hello and welcome to this blog. Edit the `index.md` file to change this content. All pages on the blog, including this one, use [Markdown](https://guides.github.com/features/mastering-markdown/). You can include images:
 
-![avatar](images/5-1-6 自己.png)
+![avatar](images/avatar.png)
 
 ## This is a title
 
