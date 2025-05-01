@@ -59,4 +59,10 @@
 }
 
 .codecell table { width: auto; }
-
+.social-media-list {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+}
