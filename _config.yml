@@ -7,8 +7,7 @@
 # https://learnxinyminutes.com/docs/yaml/
 
 title: Huiying's blog
-github_username: chy15164971
-youtube_username: hylifestyle
+descrption: Welcome to my blog!
 
 # Set this to true to get LaTeX math equation support
 use_math:
