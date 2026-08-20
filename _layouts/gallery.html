@@ -1,0 +1,51 @@
+---
+layout: default
+---
+
+<div class="page gallery-page">
+  <header class="page-header">
+    <h1 class="page-heading">{{ page.title | default: "图库" }}</h1>
+    {%- if page.description -%}<p class="page-sub">{{ page.description }}</p>{%- endif -%}
+  </header>
+
+  {{ content }}
+
+  {%- assign cats = "设计|摄影|插画" | split: "|" -%}
+  <nav class="gallery-filters" id="galleryFilters" aria-label="图库分类">
+    <button class="filter-pill is-active" data-filter="all">全部</button>
+    {%- for c in cats -%}
+    <button class="filter-pill" data-filter="{{ c }}">{{ c }}</button>
+    {%- endfor -%}
+  </nav>
+
+  {%- assign items = site.gallery | sort: "order" -%}
+  <div class="gallery-grid">
+    {%- for item in items -%}
+      <figure class="gallery-item" data-cat="{{ item.category }}">
+        <img src="{{ item.image | relative_url }}"
+             alt="{{ item.caption | default: item.title | escape }}"
+             loading="lazy">
+        {%- if item.caption -%}<figcaption>{{ item.caption | escape }}</figcaption>{%- endif -%}
+      </figure>
+    {%- endfor -%}
+  </div>
+</div>
+
+<script>
+(function () {
+  var wrap = document.getElementById('galleryFilters');
+  if (!wrap) return;
+  var pills = wrap.querySelectorAll('.filter-pill');
+  var items = document.querySelectorAll('.gallery-grid .gallery-item');
+  wrap.addEventListener('click', function (e) {
+    var btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    var f = btn.getAttribute('data-filter');
+    pills.forEach(function (p) { p.classList.toggle('is-active', p === btn); });
+    items.forEach(function (it) {
+      var show = (f === 'all') || (it.getAttribute('data-cat') === f);
+      it.style.display = show ? '' : 'none';
+    });
+  });
+})();
+</script>

@@ -1,0 +1,55 @@
+---
+layout: default
+---
+
+<div class="page articles-page">
+  <header class="page-header">
+    <h1 class="page-heading">{{ page.title | default: "文章" }}</h1>
+    {%- if page.description -%}<p class="page-sub">{{ page.description }}</p>{%- endif -%}
+  </header>
+
+  {{ content }}
+
+  {%- assign ordered = "UI设计,语言学习,生活随笔" | split: "," -%}
+  {%- for t in ordered -%}
+    {%- assign items = site.posts | where_exp: "p", "p.categories contains t" -%}
+    {%- if items.size > 0 -%}
+      <section class="section-block">
+        <h2 class="section-title">{{ t }}<span class="section-count">{{ items.size }}</span></h2>
+        <ul class="post-list">
+          {%- assign date_format = site.minima.date_format | default: "%Y-%m-%d" -%}
+          {%- for post in items -%}
+            <li>
+              <span class="post-meta">{{ post.date | date: date_format }}</span>
+              <a class="post-link" href="{{ post.url | relative_url }}">{{ post.title | escape }}</a>
+              {%- if post.description or site.show_excerpts -%}
+                <p class="post-excerpt">{{ post.description | default: post.excerpt | strip_html | truncatewords: 40 }}</p>
+              {%- endif -%}
+            </li>
+          {%- endfor -%}
+        </ul>
+      </section>
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- assign untyped = site.posts | where_exp: "p", "p.categories == empty" -%}
+  {%- if untyped.size > 0 -%}
+    <section class="section-block">
+      <h2 class="section-title">其他<span class="section-count">{{ untyped.size }}</span></h2>
+      <ul class="post-list">
+        {%- assign date_format = site.minima.date_format | default: "%Y-%m-%d" -%}
+        {%- for post in untyped -%}
+          <li>
+            <span class="post-meta">{{ post.date | date: date_format }}</span>
+            <a class="post-link" href="{{ post.url | relative_url }}">{{ post.title | escape }}</a>
+            {%- if post.description or site.show_excerpts -%}
+              <p class="post-excerpt">{{ post.description | default: post.excerpt | strip_html | truncatewords: 40 }}</p>
+            {%- endif -%}
+          </li>
+        {%- endfor -%}
+      </ul>
+    </section>
+  {%- endif -%}
+
+  <p class="rss-subscribe">订阅 <a href="{{ "/feed.xml" | relative_url }}">RSS</a></p>
+</div>

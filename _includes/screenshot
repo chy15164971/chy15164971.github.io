@@ -1,5 +1,8 @@
 <figure>
-  <img class="image" srcset="/images/{{ include.url }} 2w" sizes="1px" src="/images/{{ include.url }}">
+  <img class="image" src="/images/{{ include.url }}"
+    {% if include.w %}srcset="/images/{{ include.url }} {{ include.w }}w" sizes="(max-width: {{ include.w }}px) 100vw, {{ include.w }}px"{% endif %}
+    alt="{{ include.alt | default: include.caption | default: '' }}"
+    loading="lazy">
   {% if include.caption %}
   <figcaption class="image-caption">{{ include.caption }}</figcaption>
   {% endif %}

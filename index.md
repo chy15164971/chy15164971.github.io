@@ -1,2 +1,6 @@
-Greetings from Huiying in Guangzhou, China and welcome to this blog. 
-[YT](https://youtube.com/@hylifestyle) | [FB](https://facebook.com/chy15164971) | [IG](http://instagram.com/chy15164971)
+---
+layout: home
+list_title: 最近文章
+---
+
+这里记录我的 UI 设计、语言学习与日常生活随笔。慢慢写，慢慢更 —— 欢迎随便逛逛 👇

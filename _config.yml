@@ -7,9 +7,25 @@
 # https://learnxinyminutes.com/docs/yaml/
 
 title: Huiying's blog
-description: Welcome to my blog!♥
+description: 广州 Huiying 的个人博客，记录 UI 设计、语言学习与生活随笔。
+lang: zh-CN
+url: "https://chy15164971.github.io"
+baseurl: ""
+author: 陈慧莹
+# 固定文章链接：排除分类前缀，保持 /年/月/日/标题.html 不变
+# （Jekyll 默认 date 永久链接含 :categories，会给文章 URL 加分类目录，导致旧链接失效）
+permalink: /:year/:month/:day/:title.html
+# 页脚社交链接：minima 自带的 _includes/social.html 会读取这些字段。
+# github_username 用于替代原先自定义 social.html 里的 site.github.owner_name
+#（那个值由 jekyll-github-metadata 在 GitHub Pages 上注入，本地构建时为 nil，
+# 会让 cgi_escape 报错；改用显式配置后本地与线上表现一致）。
+github_username: chy15164971
 instagram_username: chy15164971
 facebook_username: chy15164971
+header_pages:
+  - articles.md
+  - gallery.md
+  - about.md
 
 # Set this to true to get LaTeX math equation support
 use_math:
@@ -24,16 +40,45 @@ plugins:
   - jekyll-gist
   - jekyll-octicons
   - jekyll-github-metadata
+  - jekyll-sitemap
 
 titles_from_headings:
   enabled:     true
   strip_title: true
   collections: true
 
+# —— 外观与 SEO 增强（P2）——
+show_excerpts: true
+minima:
+  date_format: "%Y-%m-%d"
+
+# 全站默认社交分享图（1200×630）。通过 Jekyll defaults 给所有页面/文章注入
+# `image` 前置字段，jekyll-seo-tag 据此输出 og:image 并把 twitter:card 升为
+# summary_large_image；单篇 front matter 里写 `image:` 可覆盖。
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: /images/og-default.png
+  - scope:
+      type: posts
+    values:
+      image: /images/og-default.png
+
+# 图库集合：仅用于首页瀑布流渲染，不生成单页
+collections:
+  gallery:
+    output: false
+
 highlighter: rouge
 markdown: kramdown
 kramdown:
-  math_engine: katex
+  # 不让 kramdown 在服务端处理数学公式：本主题是在 head.html 里用 KaTeX
+  # auto-render 做客户端渲染（由 use_math 开关控制），若 kramdown 先把 $...$
+  # 转换掉，客户端 KaTeX 就拿不到原始分隔符了。
+  # 另外 math_engine: katex 需要额外的 kramdown-math-katex gem，
+  # GitHub Pages 会强制覆盖 kramdown 配置所以线上不报错，但本地构建会直接失败。
+  math_engine:
   input: GFM
   auto_ids: true
   hard_wrap: false
