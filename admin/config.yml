@@ -1,6 +1,6 @@
 # ── 写作台（Sveltia CMS）配置 ──────────────────────────────────────────
 # 入口：https://chy15164971.github.io/admin/
-# 登录：首屏点「Sign In with Token」→ 在弹出窗口里点官方链接生成 Token → 粘贴
+# 登录：首屏点「Sign In Using Access Token」→ 粘贴 GitHub Token（见下方 auth_methods 说明）
 #       Token 只存在你自己浏览器的本地存储里，不会进仓库。
 # 保存/发布 = 直接提交到本仓库 → GitHub Pages 自动重建（约 1 分钟生效）。
 
@@ -8,8 +8,18 @@ backend:
   name: github
   repo: chy15164971/chy15164971.github.io
   branch: master
-  # 若想在多设备/多浏览器上免去「贴 Token」这一步（改成点一下就用 GitHub 登录），
-  # 部署 Sveltia CMS Authenticator（Cloudflare Worker）后，取消下面一行注释并填入地址：
+
+  # ⚠️ 只允许 Token 登录，禁用 OAuth 登录按钮。
+  #    原因：本仓库是 GitHub Pages 静态站，没有 OAuth 服务端。若不写这一行，
+  #    登录页会同时显示「Sign In」（OAuth）按钮，点击后 Sveltia 会回退到它内置的
+  #    默认中转 https://api.netlify.com/auth —— 你的站不在 Netlify 上，该地址返回
+  #    404「Not Found」，即之前看到的报错。
+  #    将来若部署了自己的 OAuth 中转（Cloudflare Worker），改成 auth_methods: [oauth, token]
+  #    并取消下面 base_url 的注释，即可恢复「一键用 GitHub 登录」。
+  auth_methods: [token]
+
+  # 部署 Sveltia CMS Authenticator（Cloudflare Worker）后，取消注释并填入地址，
+  # 同时把上面的 auth_methods 改为 [oauth, token]：
   # base_url: https://sveltia-cms-auth.你的子域.workers.dev
 
 # 上传的图片提交到仓库的 images/uploads/，正文中以 /images/uploads/文件名 引用
