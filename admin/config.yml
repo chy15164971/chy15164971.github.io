@@ -1,0 +1,116 @@
+# ── 写作台（Sveltia CMS）配置 ──────────────────────────────────────────
+# 入口：https://chy15164971.github.io/admin/
+# 登录：首屏点「Sign In with Token」→ 在弹出窗口里点官方链接生成 Token → 粘贴
+#       Token 只存在你自己浏览器的本地存储里，不会进仓库。
+# 保存/发布 = 直接提交到本仓库 → GitHub Pages 自动重建（约 1 分钟生效）。
+
+backend:
+  name: github
+  repo: chy15164971/chy15164971.github.io
+  branch: master
+  # 若想在多设备/多浏览器上免去「贴 Token」这一步（改成点一下就用 GitHub 登录），
+  # 部署 Sveltia CMS Authenticator（Cloudflare Worker）后，取消下面一行注释并填入地址：
+  # base_url: https://sveltia-cms-auth.你的子域.workers.dev
+
+# 上传的图片提交到仓库的 images/uploads/，正文中以 /images/uploads/文件名 引用
+media_folder: images/uploads
+public_folder: /images/uploads
+
+site_url: https://chy15164971.github.io
+display_url: https://chy15164971.github.io
+
+collections:
+  # ── 文章 ────────────────────────────────────────────────────────────
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    folder: _posts
+    create: true
+    identifier_field: title
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    sortable_fields: [date, title]
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+      - label: 日期
+        name: date
+        widget: datetime
+        date_format: YYYY-MM-DD
+        time_format: false
+        format: YYYY-MM-DD
+      - label: 分类
+        name: categories
+        widget: select
+        options:
+          - UI设计
+          - 语言学习
+          - 生活随笔
+        multiple: true
+        default:
+          - UI设计
+        hint: 决定这篇文章出现在「文章」页的哪个分块
+      - label: 摘要
+        name: description
+        widget: text
+        required: false
+        hint: 出现在首页卡片与搜索结果里，建议 20–40 字
+      - label: 正文
+        name: body
+        widget: markdown
+
+  # ── 图库 ────────────────────────────────────────────────────────────
+  - name: gallery
+    label: 图库
+    label_singular: 图片
+    folder: _gallery
+    create: true
+    identifier_field: title
+    slug: "{{slug}}"
+    sortable_fields: [order, title]
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+      - label: 分类
+        name: category
+        widget: select
+        options:
+          - 设计
+          - 摄影
+          - 插画
+        hint: 对应图库页顶部的筛选按钮
+      - label: 图片
+        name: image
+        widget: image
+      - label: 说明
+        name: caption
+        widget: string
+        required: false
+      - label: 排序
+        name: order
+        widget: number
+        value_type: int
+        required: false
+        default: 99
+        hint: 数字越小越靠前
+
+  # ── 单页 ────────────────────────────────────────────────────────────
+  - name: pages
+    label: 单页
+    files:
+      - label: 关于
+        name: about
+        file: about.md
+        fields:
+          - label: 布局
+            name: layout
+            widget: hidden
+            default: page
+          - label: 标题
+            name: title
+            widget: string
+            default: About
+          - label: 正文
+            name: body
+            widget: markdown

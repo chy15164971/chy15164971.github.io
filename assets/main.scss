@@ -592,6 +592,31 @@ body::before {
     color: var(--text);
   }
 
+  /* 写作台入口：低调胶囊按钮，不抢访客的视觉重点 */
+  .hero-admin {
+    margin: .7rem 0 0;
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .22rem .62rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: .78rem;
+      line-height: 1.6;
+      color: var(--text-soft);
+      background: var(--surface);
+      text-decoration: none;
+      transition: color .15s ease, border-color .15s ease;
+    }
+
+    a:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+  }
+
   @media (max-width: 600px) {
     flex-direction: column;
     text-align: center;

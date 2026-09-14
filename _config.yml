@@ -64,6 +64,9 @@ defaults:
       type: posts
     values:
       image: /images/og-default.png
+      # 显式指定文章布局。GitHub Pages 会隐式启用 jekyll-default-layout 兜底，
+      # 但那属于隐式行为：写作台新建的文章、以及本地预览都依赖它，写死更稳。
+      layout: post
 
 # 图库集合：仅用于首页瀑布流渲染，不生成单页
 collections:
