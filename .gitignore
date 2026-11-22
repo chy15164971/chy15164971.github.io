@@ -1,9 +1,3 @@
-*.swp
-~*
-*~
-_site
-.sass-cache
-.jekyll-cache
-.jekyll-metadata
-vendor
-_notebooks/.ipynb_checkpoints
+# 内部备份与整理记录，不进公开仓库
+_ops/
+*.inject.tmp

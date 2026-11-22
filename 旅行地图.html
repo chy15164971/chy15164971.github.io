@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>旅行地图 · 工作台</title>
+    <meta name="theme-color" content="#4F7CFF">
+    <link rel="manifest" href="manifest.json">
+<script>/* O-7：主题初值统一——未显式选择时跟随系统，避免从其他页跳来时主题闪变 */try{var _t=localStorage.getItem("wb_theme_v1");if(!_t&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)_t="dark";if(_t)document.documentElement.setAttribute("data-theme",_t);/* P2：初值是暗色时同步 theme-color（亮 #4F7CFF / 暗 #0f1320，与任务台/海报墙同口径） */var _mt=document.querySelector('meta[name="theme-color"]');if(_mt)_mt.setAttribute("content",_t==="dark"?"#0f1320":"#4F7CFF");}catch(e){}</script>
+<style>
+  /* === 旅行地图页私有 token（写在 SHARED TOKENS 标记区之外，sync_tokens.js 不触碰）=== */
+  /* 地图页私有：无额外变量，共享 token 已覆盖全部引用（--pri/--pri-deep/--bg/--card/--ink/--sub/--line/--hover） */
+  /* === SHARED TOKENS START === */
+  :root{
+    --bg:#f5f7fb; --card:#ffffff; --ink:#1f2430; --text:#1f2430; --sub:#6b7280; --line:#e7ebf2;
+    /* --pri-ink：主色当**文字**用（#4F7CFF 白底仅 3.71:1 不达标）→ 5.48:1
+       --pri-deep：主色当**底色**、上面压白色小字（12.5–14px 不到大文本门槛）→ 4.73:1
+       纯填充（进度条/图标/色点）继续用 --pri，不受影响。 */
+    --pri-ink:#2F5FE0; --pri-deep:#3D68F0;
+    --pri:#4F7CFF; --pri-soft:#eaf0ff; --ok:#22b07d; --ok-soft:#e7f6ec; --warn:#ff8a3d; --danger:#ef4444;
+    /* 语义色三件套（2026-11-22 批三补）：--x 只做填充，文字一律用 --x-ink 压在 --x-soft 上。
+       起因：状态胶囊/徽章此前是「品牌色底 + 白字」，实测 --ok 底白字 2.77:1、深色 --ok 底白字
+       仅 1.90:1；而 11–12.5px 的状态文字恰是用户最需要一眼读准的内容。
+       数值：ok-ink 4.58:1 / warn-ink 4.86:1 / danger-ink 5.15:1（压各自 soft 底，均过 AA 4.5:1）。 */
+    --ok-ink:#167d55; --warn-soft:#fff5e6; --warn-ink:#a25a0f; --danger-soft:#fdecec; --danger-ink:#c62828;
+    /* 数据色（c4 媒体剧集 / c5 兜底灰在用；c1~c3 已删除，分类/优先级用用户自定义色） */
+    --c4:#ff5c8a; --c5:#9aa0ab; --c6:#9b6bff;
+    --chip-bg:#6b7280;
+    --radius:12px; --radius-sm:8px; --radius-lg:16px; --shadow:0 2px 10px rgba(31,36,48,.06);
+    /* cloudpill / 菜单 hover 此前引用未定义值导致样式退化，统一补全 */
+    --bg2:#f5f7fb; --muted:#6b7280; --hover:#f4f6fb; --soft:#f1f4f9;
+  --accent:#7c5cff; --white:#fff; --ink-strong:#1f2430; }
+  [data-theme="dark"]{
+    --bg:#0f1320; --card:#171c2b; --ink:#e7ebf3; --text:#e7ebf3; --sub:#9aa3b2; --line:#262d3f;
+    --pri-ink:#8FABFF; --pri-deep:#3D68F0;
+    --pri:#5b86ff; --pri-soft:#1c2740; --hover:#1c2236; --bg2:#11162a; --muted:#9aa3b2;
+    --ok:#2dd4a0; --ok-soft:#10312a; --warn:#ff9a52; --danger:#ff5d5d;
+    /* 深色语义色三件套：底色翻深、ink 翻浅，同样保证压 --x-soft 时 ≥4.5:1
+       （ok-ink 7.38 / warn-ink 8.84 / danger-ink 5.19） */
+    --ok-ink:#2dd4a0; --warn-soft:#33240f; --warn-ink:#ffb877; --danger-soft:#3a1a1c; --danger-ink:#ff5d5d;
+    --c4:#ff7aa6; --c5:#5a6478; --c6:#b08cff;
+    /* 深色下 --muted 是浅灰（#9aa3b2），压白字只有 ~2.4:1 → chip 底色另给一个深灰 */
+    --chip-bg:#5a6478;
+    --shadow:0 2px 10px rgba(0,0,0,.32);
+    --soft:#1c2233;
+  --accent:#9b8cff;
+  /* G19（2026-10-23 修）：dark 补定义 --ink-strong —— 原漏覆盖仍为亮色值 #1f2430，
+     深色下 .today-sec-act:hover 等引用处深字压深底近乎隐形 */
+  --ink-strong:#e7ebf3; }
+  /* === SHARED TOKENS END === */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;display:flex;flex-direction:column}  /* P2：flex 列布局，main 撑满剩余高度——此前 390px 下 header 折行后远超 108px，calc 写死减数把地图挤出首屏 */
+header{height:60px;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{font-size:16px;font-weight:600;margin:0;white-space:nowrap}
+.tabs,.subtabs{display:flex;gap:6px}
+.tab,.subtab{min-height:36px;padding:0 13px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--sub);cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap}
+.tab.on{background:var(--pri-deep);border-color:var(--pri-deep);color:#fff}
+.subtab{font-size:12px;border-radius:8px}
+.subtab.on{background:var(--hover);border-color:var(--pri);color:var(--pri-deep)}
+.stat{margin-left:auto;color:var(--sub);font-size:12px;white-space:nowrap}
+.clear{min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--sub);cursor:pointer;font-family:inherit;font-size:12px}
+main{display:flex;gap:12px;padding:12px;flex:1;min-height:0}  /* P2：flex:1 替代 height:calc(100% - 60px) 写死减数 */
+aside{width:290px;flex:none;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.aside-h{padding:12px 14px 8px;font-size:12px;color:var(--sub);border-bottom:1px solid var(--line)}
+.searchwrap{display:none;padding:8px 10px;border-bottom:1px solid var(--line)}
+.searchwrap.show{display:block}
+#search{width:100%;min-height:36px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;background:var(--card);color:var(--ink)}
+.hint{font-size:11px;color:var(--sub);line-height:1.6;padding:8px 14px;margin:0}
+#list{overflow-y:auto;flex:1;padding:4px 8px 12px}
+.grp{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px}
+.grp-h{display:flex;justify-content:space-between;padding:8px 8px 3px;font-size:11px;color:var(--sub)}
+.place{display:flex;align-items:center;gap:9px;width:100%;min-height:40px;padding:5px 8px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ink);cursor:pointer;font-family:inherit;font-size:13px;text-align:left}
+.place:hover{background:var(--hover)}
+.place .dot{width:12px;height:12px;border-radius:50%;border:2px solid #aab4c4;background:transparent;flex:none}
+.place.on .dot{border-color:var(--pri);background:var(--pri);box-shadow:0 0 0 3px rgba(79,124,255,.18)}
+.place .nm{flex:1;min-width:0}
+.place.on .nm{font-weight:600;color:var(--pri-deep)}
+.place .meta{font-size:11px;color:var(--sub)}
+#mapWrap{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#eef2f8;position:relative}
+/* position:relative 是必需的：地图加载失败时降级层用 position:absolute;inset:0 插进 #map，
+   此前 #mapWrap / #map 都没有定位上下文，包含块退回视口 → 降级层铺满整窗并吃掉全部点击。 */
+#map{width:100%;height:100%}
+.prow{display:flex;align-items:center;gap:2px}
+.prow .place{flex:1;min-width:0}
+.dbtn{flex:none;min-width:36px;min-height:32px;padding:0 6px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--sub);font-size:11px;font-family:inherit;cursor:pointer;white-space:nowrap}
+.dbtn:hover{background:var(--hover);color:var(--pri-deep);border-color:var(--pri)}
+.dbtn.has{color:var(--pri-deep);border-color:rgba(79,124,255,.42);background:rgba(79,124,255,.08)}
+.diary-mask{display:none;position:fixed;inset:0;z-index:50;background:rgba(20,26,40,.44);align-items:center;justify-content:center;padding:16px}
+.diary-mask.show{display:flex}
+.diary-panel{width:min(580px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 12px 44px rgba(20,26,40,.2)}
+.diary-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.diary-h b{font-size:15px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diary-x{width:32px;height:32px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--sub);cursor:pointer;font-size:16px;font-family:inherit;line-height:1}
+.diary-body{overflow-y:auto;padding:12px 16px;flex:1;min-height:80px}
+/* P2：页内确认弹窗（替代 window.confirm——受限 iframe 下原生 confirm 可能静默返回 false） */
+.ask-mask{display:none;position:fixed;inset:0;z-index:90;background:rgba(20,26,40,.44);align-items:center;justify-content:center;padding:16px}
+.ask-mask.show{display:flex}
+.ask-box{width:min(380px,100%);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 12px 44px rgba(20,26,40,.2)}
+.ask-body{font-size:13px;color:var(--ink);line-height:1.6;margin:0 0 16px}
+.ask-btns{display:flex;gap:8px;justify-content:flex-end}
+.ask-btns button{min-height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer}
+.ask-btns .ask-pri{background:var(--pri-deep);border-color:var(--pri-deep);color:#fff}
+.diary-empty{color:var(--sub);font-size:12px;text-align:center;padding:18px 8px}
+.dentry{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:9px;background:var(--card)}
+.dentry .eh{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--sub)}
+.dentry .eh b{font-size:13px;color:var(--ink);font-weight:600}
+.dentry .eh .sp{flex:1}
+.dentry p{margin:6px 0 0;font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.dphotos{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.dphotos img{width:74px;height:74px;object-fit:cover;border-radius:7px;border:1px solid var(--line);background:var(--bg);cursor:zoom-in}
+.dmini{min-height:26px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--sub);font-size:11px;font-family:inherit;cursor:pointer}
+.dmini:hover{color:var(--pri-deep);border-color:var(--pri)}
+.dform{border-top:1px solid var(--line);padding:11px 16px 14px;background:var(--bg)}
+.dform label{display:block;font-size:11px;color:var(--sub);margin:0 0 3px}
+.dform input[type=date],.dform input[type=text],.dform textarea{width:100%;min-height:34px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;background:var(--card);color:var(--ink);margin-bottom:7px}
+.dform textarea{min-height:66px;resize:vertical}
+.drow{display:flex;gap:8px}.drow>*{flex:1;min-width:0}
+.dact{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dact .btn{min-height:34px;padding:0 13px;border-radius:8px;font-family:inherit;font-size:12px;cursor:pointer}
+.dact .pri{background:var(--pri-deep);border:1px solid var(--pri-deep);color:#fff}
+.dact .gh{background:transparent;border:1px solid var(--line);color:var(--sub)}
+#dFile{font-size:11px;max-width:190px}
+.dthumbs{display:flex;gap:6px;flex-wrap:wrap;margin:5px 0}
+.dthumbs div{position:relative}
+.dthumbs img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.dthumbs button{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--sub);font-size:11px;line-height:1;cursor:pointer;padding:0}
+@media(max-width:680px){
+  header{height:auto;min-height:56px;flex-wrap:wrap;padding:8px 12px;gap:8px}
+  h1{font-size:15px;width:100%}
+  .stat{margin-left:0;font-size:11px}
+  .tab,.subtab,.clear{min-height:44px}
+  #search{min-height:44px;font-size:16px}
+  main{flex-direction:column;padding:8px;gap:8px}  /* P2：高度交给 flex，不再写死 calc(100% - 108px) */
+  aside{width:100%;height:34vh;flex:none}
+  #mapWrap{height:52vh;flex:none}
+}
+</style>
+<script src="https://map.qq.com/api/gljs?v=1.exp&key=ARBBZ-Q3Q6Q-HPN53-2LB53-FLS57-TPB23" onerror="window.__TMapLoadFailed=true"></script>
+</head>
+<body>
+<!-- >>> SITE-NAV-HTML:BEGIN —— 由 _shared/site-nav-static.html 自动生成，请勿直接编辑本块 -->
+<!-- 站点统一导航条 · 静态首屏版 v2（2026-11-04）
+     唯一真相源：_shared/site-nav-static.html，由 inject_shared.py 内联到七页 <body> 开头。
+     为什么静态：v1 由 site-nav.js 在 DOMContentLoaded 后才 createElement 插入，任务台 HTML
+     约 831KB，实测 FCP 1220ms / DCL 1555ms —— 中间约 335ms 首屏是「没有导航条的旧版
+     任务台」，导航条插入后整页下移，用户看到闪一下旧画面。静态渲染后首屏解析即有导航条。
+     当前页高亮与 PWA 注册仍由 _shared/site-nav.js 补（纯样式变化，不引起布局跳动）。
+     品牌图标：__wsn_brand 前内联同款三卡组 SVG（与首页 logo / PWA 图标同源），
+     用 inline 而非 <img> 引用外部文件——零额外请求、首屏即显示、离线绝对稳，且不依赖 SW 缓存；
+     渐变 id 加 __wsn_ 前缀避免同页 id 冲突。
+     2026-11-06 D-16：品牌由 <span> 改为 <a href="home.html">，四个子页可点左上角回首页。 -->
+<style id="__wsn_style">
+.__wsn_bar{display:flex;align-items:center;gap:14px;padding:7px 16px;box-sizing:border-box;
+  width:100%;background:var(--card,#fff);color:var(--ink,#1f2430);
+  border-bottom:1px solid var(--line,#e7ebf2);font-size:13px;line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  position:relative;z-index:1}
+.__wsn_brand{display:inline-flex;align-items:center;gap:7px;font-weight:600;letter-spacing:.02em;white-space:nowrap;color:var(--ink,#1f2430);text-decoration:none;cursor:pointer}
+.__wsn_icon{width:20px;height:20px;border-radius:5px;flex:none;display:block}
+.__wsn_links{display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.__wsn_links::-webkit-scrollbar{display:none}
+.__wsn_links a{display:inline-flex;align-items:center;min-height:36px;padding:3px 11px;border-radius:999px;text-decoration:none;
+  white-space:nowrap;color:var(--sub,#6b7280);border:1px solid transparent;transition:background .15s ease,color .15s ease}
+.__wsn_links a:hover{background:var(--hover,var(--pri-soft,#eaf0ff));color:var(--ink,#1f2430)}
+.__wsn_links a.__wsn_on{color:#fff;background:var(--pri-deep,#3D68F0);border-color:var(--pri-deep,#3D68F0)}
+.__wsn_hint{font-size:12px;color:var(--sub,#9aa3b2);white-space:nowrap}
+.__wsn_bar a:focus-visible{outline:2px solid var(--pri,#4F7CFF);outline-offset:2px}
+@media(max-width:680px){.__wsn_bar{gap:9px;padding:6px 10px}.__wsn_hint{display:none}
+  .__wsn_brand{min-height:44px}
+  .__wsn_links a{padding:3px 9px;font-size:12px;min-height:44px}}
+@media(prefers-reduced-motion:reduce){.__wsn_links a{transition:none}}
+</style>
+<nav id="__wsn_bar" class="__wsn_bar" aria-label="站点导航">
+  <a class="__wsn_brand" href="home.html" aria-label="工作台首页"><svg class="__wsn_icon" viewBox="0 0 1024 1024" aria-hidden="true"><defs><linearGradient id="__wsn_wbG" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5B86FF"/><stop offset="1" stop-color="#2F5FE0"/></linearGradient></defs><rect width="1024" height="1024" rx="208" fill="url(#__wsn_wbG)"/><rect x="62" y="62" width="900" height="900" rx="208" fill="none" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="12"/><rect x="208" y="406" width="168" height="300" rx="34" fill="#FFFFFF"/><rect x="228" y="426" width="128" height="22" rx="11" fill="#4F7CFF"/><rect x="428" y="334" width="168" height="372" rx="34" fill="#FFFFFF"/><rect x="448" y="354" width="128" height="22" rx="11" fill="#D4537E"/><rect x="648" y="406" width="168" height="300" rx="34" fill="#FFFFFF"/><rect x="668" y="426" width="128" height="22" rx="11" fill="#8B5CF6"/></svg>工作台</a>
+  <div class="__wsn_links">
+    <a href="home.html" data-page="home">首页</a>
+    <a href="任务管理台.html" data-page="tasks">任务台</a>
+    <a href="明信片追踪.html" data-page="postcards">明信片</a>
+    <a href="书影音海报墙.html" data-page="media">海报墙</a>
+    <a href="观剧记录.html" data-page="theatre">观剧</a>
+    <a href="旅行地图.html" data-page="map">地图</a>
+    <a href="随笔.html" data-page="notes">随笔</a>
+    <a href="作品集.html" data-page="portfolio">作品集</a>
+    <a href="时间线.html" data-page="timeline">时间线</a>
+  </div>
+  <span class="__wsn_hint">同一工作台 · 数据保存在本机</span>
+</nav>
+<!-- <<< SITE-NAV-HTML:END -->
+<header>
+  <h1>旅行地图</h1>
+  <div class="tabs">
+    <button class="tab on" id="tabChina" type="button">中国地图</button>
+    <button class="tab" id="tabWorld" type="button">世界地图</button>
+  </div>
+  <div class="subtabs" id="subtabs">
+    <button class="subtab on" id="subProv" type="button">省份</button>
+    <button class="subtab" id="subCity" type="button">城市</button>
+  </div>
+  <span class="stat" id="stat">—</span>
+  <button class="clear" id="clearBtn" type="button">清空标记</button>
+</header>
+<main>
+  <aside>
+    <div class="aside-h" id="asideH">中国 · 省份 / 地区</div>
+    <div class="searchwrap" id="searchwrap"><input id="search" type="search" placeholder="搜索城市或省份"></div>
+    <p class="hint" id="hint">勾选即点亮地图上的标记；点地图上的圆点也可切换。标记只保存在本机浏览器。</p>
+    <div id="list"></div>
+  </aside>
+  <div id="mapWrap"><div id="map"></div></div>
+</main>
+<div class="diary-mask" id="diaryMask">
+  <div class="diary-panel" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="diary-h"><b id="dTitle">地点日记</b><button class="diary-x" id="dClose" type="button" aria-label="关闭">×</button></div>
+    <div class="diary-body" id="dList"></div>
+    <form class="dform" id="dForm">
+      <input type="hidden" id="dEdit">
+      <div class="drow">
+        <div><label for="dDate">日期</label><input type="date" id="dDate"></div>
+        <div><label for="dTitleIn">标题</label><input type="text" id="dTitleIn" placeholder="给这趟旅行起个名字"></div>
+      </div>
+      <label for="dText">日记正文</label>
+      <textarea id="dText" placeholder="今天去了哪里、吃了什么、看到了什么…"></textarea>
+      <label for="dFile">添加照片（可多选，自动生成缩略图）</label>
+      <input type="file" id="dFile" accept="image/*" multiple>
+      <div class="dthumbs" id="dThumbs"></div>
+      <div class="dact">
+        <button type="submit" class="btn pri" id="dSave">保存日记</button>
+        <button type="button" class="btn gh" id="dCancel">取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="ask-mask" id="askMask">
+  <div class="ask-box" role="dialog" aria-modal="true" aria-labelledby="askBody">
+    <div class="ask-body" id="askBody"></div>
+    <div class="ask-btns">
+      <button type="button" class="ask-pri" id="askOk">确定</button>
+      <button type="button" class="ask-sec" id="askCancel">取消</button>
+    </div>
+  </div>
+</div>
+<script>
+/* 本地原型：WorkBuddy 本地代理模式（无需 key）；上线需自备 key，海外底图另需权限。
+   坐标 GCJ-02；台湾、香港、澳门按中国省级行政区列示。 */
+const CHINA = [
+  {id:'bj',name:'北京',lat:39.9042,lng:116.4074},
+  {id:'tj',name:'天津',lat:39.3434,lng:117.3616},
+  {id:'he',name:'河北',lat:38.0428,lng:114.5149},
+  {id:'sx',name:'山西',lat:37.8706,lng:112.5489},
+  {id:'nm',name:'内蒙古',lat:40.8426,lng:111.7492},
+  {id:'ln',name:'辽宁',lat:41.8057,lng:123.4315},
+  {id:'jl',name:'吉林',lat:43.8171,lng:125.3235},
+  {id:'hl',name:'黑龙江',lat:45.8038,lng:126.5350},
+  {id:'sh',name:'上海',lat:31.2304,lng:121.4737},
+  {id:'js',name:'江苏',lat:32.0603,lng:118.7969},
+  {id:'zj',name:'浙江',lat:30.2741,lng:120.1551},
+  {id:'ah',name:'安徽',lat:31.8206,lng:117.2272},
+  {id:'fj',name:'福建',lat:26.0745,lng:119.2965},
+  {id:'jx',name:'江西',lat:28.6829,lng:115.8582},
+  {id:'sd',name:'山东',lat:36.6512,lng:117.1201},
+  {id:'ha',name:'河南',lat:34.7466,lng:113.6254},
+  {id:'hb',name:'湖北',lat:30.5928,lng:114.3055},
+  {id:'hn',name:'湖南',lat:28.2282,lng:112.9388},
+  {id:'gd',name:'广东',lat:23.1291,lng:113.2644},
+  {id:'gx',name:'广西',lat:22.8170,lng:108.3669},
+  {id:'hi',name:'海南',lat:20.0442,lng:110.1999},
+  {id:'cq',name:'重庆',lat:29.5630,lng:106.5516},
+  {id:'sc',name:'四川',lat:30.5728,lng:104.0668},
+  {id:'gz',name:'贵州',lat:26.6470,lng:106.6302},
+  {id:'yn',name:'云南',lat:25.0389,lng:102.7183},
+  {id:'xz',name:'西藏',lat:29.6520,lng:91.1721},
+  {id:'sn',name:'陕西',lat:34.3416,lng:108.9398},
+  {id:'gs',name:'甘肃',lat:36.0611,lng:103.8343},
+  {id:'qh',name:'青海',lat:36.6171,lng:101.7782},
+  {id:'nx',name:'宁夏',lat:38.4872,lng:106.2309},
+  {id:'xj',name:'新疆',lat:43.8256,lng:87.6168},
+  {id:'tw',name:'台湾',lat:25.0330,lng:121.5654},
+  {id:'hk',name:'香港',lat:22.3193,lng:114.1694},
+  {id:'mo',name:'澳门',lat:22.1987,lng:113.5439}
+];
+const CN_CITIES = [
+  {id:'bjc',name:'北京',p:'bj',lat:39.9042,lng:116.4074},
+  {id:'tjc',name:'天津',p:'tj',lat:39.3434,lng:117.3616},
+  {id:'sjz',name:'石家庄',p:'he',lat:38.0428,lng:114.5149},
+  {id:'ts',name:'唐山',p:'he',lat:39.6305,lng:118.1802},
+  {id:'qhd',name:'秦皇岛',p:'he',lat:39.9354,lng:119.6005},
+  {id:'hd',name:'邯郸',p:'he',lat:36.6256,lng:114.5391},
+  {id:'bd',name:'保定',p:'he',lat:38.8740,lng:115.4646},
+  {id:'zjk',name:'张家口',p:'he',lat:40.7687,lng:114.8860},
+  {id:'cdhe',name:'承德',p:'he',lat:40.9514,lng:117.9634},
+  {id:'lf',name:'廊坊',p:'he',lat:39.5379,lng:116.6835},
+  {id:'ty',name:'太原',p:'sx',lat:37.8706,lng:112.5489},
+  {id:'dt',name:'大同',p:'sx',lat:40.0768,lng:113.3004},
+  {id:'py',name:'平遥',p:'sx',lat:37.1972,lng:112.1762},
+  {id:'jzsx',name:'晋中',p:'sx',lat:37.6873,lng:112.7534},
+  {id:'yc',name:'运城',p:'sx',lat:35.0264,lng:111.0038},
+  {id:'hhht',name:'呼和浩特',p:'nm',lat:40.8426,lng:111.7492},
+  {id:'bt',name:'包头',p:'nm',lat:40.6574,lng:109.8403},
+  {id:'cf',name:'赤峰',p:'nm',lat:42.2585,lng:118.9721},
+  {id:'hlbe',name:'呼伦贝尔',p:'nm',lat:49.2126,lng:119.7658},
+  {id:'ejnq',name:'额济纳旗',p:'nm',lat:41.9458,lng:101.0703},
+  {id:'sy',name:'沈阳',p:'ln',lat:41.8057,lng:123.4315},
+  {id:'dl',name:'大连',p:'ln',lat:38.9140,lng:121.6147},
+  {id:'as',name:'鞍山',p:'ln',lat:41.1086,lng:122.9956},
+  {id:'dd',name:'丹东',p:'ln',lat:40.1240,lng:124.3544},
+  {id:'jz',name:'锦州',p:'ln',lat:41.1197,lng:121.1229},
+  {id:'cc',name:'长春',p:'jl',lat:43.8171,lng:125.3235},
+  {id:'jls',name:'吉林市',p:'jl',lat:43.8379,lng:126.5496},
+  {id:'yj',name:'延吉',p:'jl',lat:42.9048,lng:129.5079},
+  {id:'cbs',name:'长白山',p:'jl',lat:42.0725,lng:128.0606},
+  {id:'heb',name:'哈尔滨',p:'hl',lat:45.8038,lng:126.5350},
+  {id:'qqhe',name:'齐齐哈尔',p:'hl',lat:47.3543,lng:123.9148},
+  {id:'mdj',name:'牡丹江',p:'hl',lat:44.5585,lng:129.6377},
+  {id:'jms',name:'佳木斯',p:'hl',lat:46.8028,lng:130.3617},
+  {id:'mh',name:'漠河',p:'hl',lat:52.9228,lng:122.5387},
+  {id:'shc',name:'上海',p:'sh',lat:31.2304,lng:121.4737},
+  {id:'nj',name:'南京',p:'js',lat:32.0603,lng:118.7969},
+  {id:'sz',name:'苏州',p:'js',lat:31.2989,lng:120.5853},
+  {id:'wx',name:'无锡',p:'js',lat:31.4912,lng:120.3119},
+  {id:'cz',name:'常州',p:'js',lat:31.8108,lng:119.9736},
+  {id:'yz',name:'扬州',p:'js',lat:32.3936,lng:119.4129},
+  {id:'zjjs',name:'镇江',p:'js',lat:32.1878,lng:119.4254},
+  {id:'nt',name:'南通',p:'js',lat:32.0171,lng:120.8942},
+  {id:'xzjs',name:'徐州',p:'js',lat:34.2058,lng:117.2847},
+  {id:'lyg',name:'连云港',p:'js',lat:34.5967,lng:119.2217},
+  {id:'hz',name:'杭州',p:'zj',lat:30.2741,lng:120.1551},
+  {id:'nb',name:'宁波',p:'zj',lat:29.8683,lng:121.5440},
+  {id:'wz',name:'温州',p:'zj',lat:27.9938,lng:120.6993},
+  {id:'sxz',name:'绍兴',p:'zj',lat:30.0301,lng:120.5824},
+  {id:'jxz',name:'嘉兴',p:'zj',lat:30.7461,lng:120.7555},
+  {id:'jhz',name:'金华',p:'zj',lat:29.0792,lng:119.6546},
+  {id:'yw',name:'义乌',p:'zj',lat:29.3066,lng:120.0753},
+  {id:'zs',name:'舟山',p:'zj',lat:30.0241,lng:122.2074},
+  {id:'tz',name:'台州',p:'zj',lat:28.6560,lng:121.4208},
+  {id:'hf',name:'合肥',p:'ah',lat:31.8206,lng:117.2272},
+  {id:'wh',name:'芜湖',p:'ah',lat:31.3526,lng:118.3835},
+  {id:'hs',name:'黄山',p:'ah',lat:29.7174,lng:118.3377},
+  {id:'aq',name:'安庆',p:'ah',lat:30.5429,lng:117.0520},
+  {id:'fy',name:'阜阳',p:'ah',lat:32.8973,lng:115.8145},
+  {id:'fz',name:'福州',p:'fj',lat:26.0745,lng:119.2965},
+  {id:'xm',name:'厦门',p:'fj',lat:24.4798,lng:118.0894},
+  {id:'qz',name:'泉州',p:'fj',lat:24.8741,lng:118.6757},
+  {id:'zzfj',name:'漳州',p:'fj',lat:24.5126,lng:117.5828},
+  {id:'wys',name:'武夷山',p:'fj',lat:27.7260,lng:117.6715},
+  {id:'pt',name:'平潭',p:'fj',lat:25.4965,lng:119.7898},
+  {id:'nc',name:'南昌',p:'jx',lat:28.6829,lng:115.8582},
+  {id:'jj',name:'九江',p:'jx',lat:29.7129,lng:116.0438},
+  {id:'jdz',name:'景德镇',p:'jx',lat:29.2684,lng:117.1770},
+  {id:'wy',name:'婺源',p:'jx',lat:29.2483,lng:117.8612},
+  {id:'gzjx',name:'赣州',p:'jx',lat:25.8315,lng:114.9352},
+  {id:'jn',name:'济南',p:'sd',lat:36.6512,lng:117.1201},
+  {id:'qd',name:'青岛',p:'sd',lat:36.0671,lng:120.3826},
+  {id:'yt',name:'烟台',p:'sd',lat:37.4638,lng:121.4483},
+  {id:'whsd',name:'威海',p:'sd',lat:37.5092,lng:122.1208},
+  {id:'wf',name:'潍坊',p:'sd',lat:36.7072,lng:119.1610},
+  {id:'qf',name:'曲阜',p:'sd',lat:35.5977,lng:116.9876},
+  {id:'ta',name:'泰安',p:'sd',lat:36.1953,lng:117.1270},
+  {id:'ly',name:'临沂',p:'sd',lat:35.1043,lng:118.3564},
+  {id:'zz',name:'郑州',p:'ha',lat:34.7466,lng:113.6254},
+  {id:'lyha',name:'洛阳',p:'ha',lat:34.6197,lng:112.4540},
+  {id:'kf',name:'开封',p:'ha',lat:34.7969,lng:114.3115},
+  {id:'jzha',name:'焦作',p:'ha',lat:35.2226,lng:113.2420},
+  {id:'xy',name:'信阳',p:'ha',lat:32.1470,lng:114.0890},
+  {id:'whhb',name:'武汉',p:'hb',lat:30.5928,lng:114.3055},
+  {id:'ychb',name:'宜昌',p:'hb',lat:30.6919,lng:111.2865},
+  {id:'xyhb',name:'襄阳',p:'hb',lat:32.0090,lng:112.1224},
+  {id:'es',name:'恩施',p:'hb',lat:30.2721,lng:109.4825},
+  {id:'sngj',name:'神农架',p:'hb',lat:31.7426,lng:110.3344},
+  {id:'cs',name:'长沙',p:'hn',lat:28.2282,lng:112.9388},
+  {id:'zjj',name:'张家界',p:'hn',lat:29.1171,lng:110.4793},
+  {id:'fh',name:'凤凰',p:'hn',lat:27.9479,lng:109.5999},
+  {id:'yy',name:'岳阳',p:'hn',lat:29.3704,lng:113.1290},
+  {id:'hy',name:'衡阳',p:'hn',lat:26.8899,lng:112.5723},
+  {id:'czhn',name:'郴州',p:'hn',lat:25.7767,lng:113.0148},
+  {id:'gzgd',name:'广州',p:'gd',lat:23.1291,lng:113.2644},
+  {id:'szgd',name:'深圳',p:'gd',lat:22.5431,lng:114.0579},
+  {id:'zh',name:'珠海',p:'gd',lat:22.2710,lng:113.5767},
+  {id:'fs',name:'佛山',p:'gd',lat:23.0218,lng:113.1214},
+  {id:'dg',name:'东莞',p:'gd',lat:23.0207,lng:113.7518},
+  {id:'zsgd',name:'中山',p:'gd',lat:22.5170,lng:113.3926},
+  {id:'st',name:'汕头',p:'gd',lat:23.3541,lng:116.6819},
+  {id:'hzgd',name:'惠州',p:'gd',lat:23.1116,lng:114.4162},
+  {id:'zq',name:'肇庆',p:'gd',lat:23.0472,lng:112.4650},
+  {id:'sg',name:'韶关',p:'gd',lat:24.8101,lng:113.5945},
+  {id:'zjgd',name:'湛江',p:'gd',lat:21.2707,lng:110.3586},
+  {id:'nn',name:'南宁',p:'gx',lat:22.8170,lng:108.3669},
+  {id:'gl',name:'桂林',p:'gx',lat:25.2735,lng:110.2900},
+  {id:'ys',name:'阳朔',p:'gx',lat:24.7786,lng:110.4967},
+  {id:'bh',name:'北海',p:'gx',lat:21.4810,lng:109.1191},
+  {id:'lz',name:'柳州',p:'gx',lat:24.3264,lng:109.4280},
+  {id:'czgx',name:'崇左',p:'gx',lat:22.3790,lng:107.2806},
+  {id:'hkh',name:'海口',p:'hi',lat:20.0442,lng:110.1999},
+  {id:'syhi',name:'三亚',p:'hi',lat:18.2528,lng:109.5119},
+  {id:'wn',name:'万宁',p:'hi',lat:18.7950,lng:110.3906},
+  {id:'dz',name:'儋州',p:'hi',lat:19.5213,lng:109.5783},
+  {id:'cqc',name:'重庆',p:'cq',lat:29.5630,lng:106.5516},
+  {id:'cdsc',name:'成都',p:'sc',lat:30.5728,lng:104.0668},
+  {id:'my',name:'绵阳',p:'sc',lat:31.4640,lng:104.7417},
+  {id:'ls',name:'乐山',p:'sc',lat:29.5565,lng:103.7651},
+  {id:'ems',name:'峨眉山',p:'sc',lat:29.5758,lng:103.3476},
+  {id:'jzg',name:'九寨沟',p:'sc',lat:33.2604,lng:103.9182},
+  {id:'dc',name:'稻城',p:'sc',lat:29.0377,lng:100.2978},
+  {id:'kd',name:'康定',p:'sc',lat:30.0508,lng:101.9637},
+  {id:'yb',name:'宜宾',p:'sc',lat:28.7697,lng:104.6232},
+  {id:'dyy',name:'都江堰',p:'sc',lat:31.0022,lng:103.6379},
+  {id:'gy',name:'贵阳',p:'gz',lat:26.6470,lng:106.6302},
+  {id:'zy',name:'遵义',p:'gz',lat:27.7253,lng:106.9272},
+  {id:'asgz',name:'安顺',p:'gz',lat:26.2458,lng:105.9480},
+  {id:'lb',name:'荔波',p:'gz',lat:25.4113,lng:107.9760},
+  {id:'xjgz',name:'西江苗寨',p:'gz',lat:26.4986,lng:108.2370},
+  {id:'zdy',name:'镇远',p:'gz',lat:27.0510,lng:108.4344},
+  {id:'km',name:'昆明',p:'yn',lat:25.0389,lng:102.7183},
+  {id:'dlyn',name:'大理',p:'yn',lat:25.6065,lng:100.2676},
+  {id:'lj',name:'丽江',p:'yn',lat:26.8721,lng:100.2327},
+  {id:'xsbn',name:'西双版纳',p:'yn',lat:22.0015,lng:100.7996},
+  {id:'xgl',name:'香格里拉',p:'yn',lat:27.8256,lng:99.7065},
+  {id:'tc',name:'腾冲',p:'yn',lat:25.0127,lng:98.4856},
+  {id:'lgh',name:'泸沽湖',p:'yn',lat:27.7114,lng:100.7754},
+  {id:'sl',name:'石林',p:'yn',lat:24.8138,lng:103.3311},
+  {id:'lsxz',name:'拉萨',p:'xz',lat:29.6520,lng:91.1721},
+  {id:'lzxz',name:'林芝',p:'xz',lat:29.6442,lng:94.3621},
+  {id:'rkz',name:'日喀则',p:'xz',lat:29.2672,lng:88.8880},
+  {id:'nmc',name:'纳木错',p:'xz',lat:30.7083,lng:90.6167},
+  {id:'al',name:'阿里',p:'xz',lat:29.6497,lng:80.1052},
+  {id:'xa',name:'西安',p:'sn',lat:34.3416,lng:108.9398},
+  {id:'bjsn',name:'宝鸡',p:'sn',lat:34.3618,lng:107.2370},
+  {id:'hssn',name:'华山',p:'sn',lat:34.4833,lng:110.0986},
+  {id:'ya',name:'延安',p:'sn',lat:36.5854,lng:109.4826},
+  {id:'yl',name:'榆林',p:'sn',lat:38.2856,lng:109.7341},
+  {id:'lzgs',name:'兰州',p:'gs',lat:36.0611,lng:103.8343},
+  {id:'dh',name:'敦煌',p:'gs',lat:40.1421,lng:94.6617},
+  {id:'jyg',name:'嘉峪关',p:'gs',lat:39.7718,lng:98.2891},
+  {id:'zygs',name:'张掖',p:'gs',lat:38.9259,lng:100.4495},
+  {id:'gn',name:'甘南',p:'gs',lat:34.9961,lng:102.9080},
+  {id:'tsgs',name:'天水',p:'gs',lat:34.5809,lng:105.7249},
+  {id:'xn',name:'西宁',p:'qh',lat:36.6171,lng:101.7782},
+  {id:'qhh',name:'青海湖',p:'qh',lat:36.8867,lng:100.1875},
+  {id:'ck',name:'茶卡',p:'qh',lat:36.7833,lng:99.0878},
+  {id:'gem',name:'格尔木',p:'qh',lat:36.4167,lng:94.9139},
+  {id:'myq',name:'门源',p:'qh',lat:37.3833,lng:101.6167},
+  {id:'ycnx',name:'银川',p:'nx',lat:38.4872,lng:106.2309},
+  {id:'zw',name:'中卫',p:'nx',lat:37.4578,lng:105.1895},
+  {id:'wlmq',name:'乌鲁木齐',p:'xj',lat:43.8256,lng:87.6168},
+  {id:'ks',name:'喀什',p:'xj',lat:39.4704,lng:75.9898},
+  {id:'ylxj',name:'伊犁',p:'xj',lat:43.9218,lng:81.3179},
+  {id:'nlt',name:'那拉提',p:'xj',lat:43.3250,lng:84.0183},
+  {id:'kns',name:'喀纳斯',p:'xj',lat:48.7167,lng:87.0333},
+  {id:'tlf',name:'吐鲁番',p:'xj',lat:42.9508,lng:89.1890},
+  {id:'ht',name:'和田',p:'xj',lat:37.1122,lng:79.9221},
+  {id:'kel',name:'库尔勒',p:'xj',lat:41.7259,lng:86.1551},
+  {id:'tb',name:'台北',p:'tw',lat:25.0330,lng:121.5654},
+  {id:'gao',name:'高雄',p:'tw',lat:22.6273,lng:120.3014},
+  {id:'tztw',name:'台中',p:'tw',lat:24.1477,lng:120.6736},
+  {id:'tn',name:'台南',p:'tw',lat:23.0006,lng:120.2213},
+  {id:'hltw',name:'花莲',p:'tw',lat:23.9765,lng:121.6010},
+  {id:'kdtw',name:'垦丁',p:'tw',lat:21.9482,lng:120.8009},
+  {id:'jf',name:'九份',p:'tw',lat:25.1068,lng:121.8454},
+  {id:'hkhk',name:'香港',p:'hk',lat:22.3193,lng:114.1694},
+  {id:'ammo',name:'澳门',p:'mo',lat:22.1987,lng:113.5439}
+];
+const WORLD_COUNTRIES = [
+  {id:'jp',name:'日本',en:'Japan',ct:'asia',lat:36.2,lng:138.3},
+  {id:'kr',name:'韩国',en:'South Korea',ct:'asia',lat:36.5,lng:127.9},
+  {id:'kp',name:'朝鲜',en:'North Korea',ct:'asia',lat:40.0,lng:127.0},
+  {id:'mn',name:'蒙古',en:'Mongolia',ct:'asia',lat:46.9,lng:103.8},
+  {id:'vn',name:'越南',en:'Vietnam',ct:'asia',lat:16.0,lng:107.0},
+  {id:'la',name:'老挝',en:'Laos',ct:'asia',lat:19.9,lng:102.5},
+  {id:'kh',name:'柬埔寨',en:'Cambodia',ct:'asia',lat:12.6,lng:104.9},
+  {id:'th',name:'泰国',en:'Thailand',ct:'asia',lat:15.0,lng:101.0},
+  {id:'mm',name:'缅甸',en:'Myanmar',ct:'asia',lat:21.9,lng:95.9},
+  {id:'my',name:'马来西亚',en:'Malaysia',ct:'asia',lat:4.2,lng:101.9},
+  {id:'sg',name:'新加坡',en:'Singapore',ct:'asia',lat:1.3521,lng:103.8198},
+  {id:'id',name:'印度尼西亚',en:'Indonesia',ct:'asia',lat:-2.5,lng:118.0},
+  {id:'ph',name:'菲律宾',en:'Philippines',ct:'asia',lat:12.9,lng:121.8},
+  {id:'bn',name:'文莱',en:'Brunei',ct:'asia',lat:4.5,lng:114.7},
+  {id:'tl',name:'东帝汶',en:'Timor-Leste',ct:'asia',lat:-8.9,lng:125.7},
+  {id:'in',name:'印度',en:'India',ct:'asia',lat:22.0,lng:79.0},
+  {id:'pk',name:'巴基斯坦',en:'Pakistan',ct:'asia',lat:30.4,lng:69.3},
+  {id:'bd',name:'孟加拉国',en:'Bangladesh',ct:'asia',lat:23.7,lng:90.4},
+  {id:'lk',name:'斯里兰卡',en:'Sri Lanka',ct:'asia',lat:7.6,lng:80.7},
+  {id:'np',name:'尼泊尔',en:'Nepal',ct:'asia',lat:28.4,lng:84.1},
+  {id:'bt',name:'不丹',en:'Bhutan',ct:'asia',lat:27.5,lng:90.4},
+  {id:'mv',name:'马尔代夫',en:'Maldives',ct:'asia',lat:3.2,lng:73.2},
+  {id:'af',name:'阿富汗',en:'Afghanistan',ct:'asia',lat:33.9,lng:66.0},
+  {id:'kz',name:'哈萨克斯坦',en:'Kazakhstan',ct:'asia',lat:48.0,lng:66.9},
+  {id:'kg',name:'吉尔吉斯斯坦',en:'Kyrgyzstan',ct:'asia',lat:41.2,lng:74.8},
+  {id:'tj',name:'塔吉克斯坦',en:'Tajikistan',ct:'asia',lat:38.9,lng:71.3},
+  {id:'tm',name:'土库曼斯坦',en:'Turkmenistan',ct:'asia',lat:38.9,lng:59.6},
+  {id:'uz',name:'乌兹别克斯坦',en:'Uzbekistan',ct:'asia',lat:41.4,lng:64.6},
+  {id:'ir',name:'伊朗',en:'Iran',ct:'asia',lat:32.4,lng:53.7},
+  {id:'iq',name:'伊拉克',en:'Iraq',ct:'asia',lat:33.2,lng:43.7},
+  {id:'sy',name:'叙利亚',en:'Syria',ct:'asia',lat:34.8,lng:38.9},
+  {id:'jo',name:'约旦',en:'Jordan',ct:'asia',lat:30.6,lng:36.2},
+  {id:'lb',name:'黎巴嫩',en:'Lebanon',ct:'asia',lat:33.9,lng:35.9},
+  {id:'il',name:'以色列',en:'Israel',ct:'asia',lat:31.05,lng:34.85},
+  {id:'ps',name:'巴勒斯坦',en:'Palestine',ct:'asia',lat:31.95,lng:35.23},
+  {id:'sa',name:'沙特阿拉伯',en:'Saudi Arabia',ct:'asia',lat:23.9,lng:45.1},
+  {id:'ye',name:'也门',en:'Yemen',ct:'asia',lat:15.6,lng:48.0},
+  {id:'om',name:'阿曼',en:'Oman',ct:'asia',lat:21.0,lng:57.0},
+  {id:'ae',name:'阿联酋',en:'United Arab Emirates',ct:'asia',lat:23.4,lng:53.8},
+  {id:'qa',name:'卡塔尔',en:'Qatar',ct:'asia',lat:25.3,lng:51.2},
+  {id:'bh',name:'巴林',en:'Bahrain',ct:'asia',lat:26.0,lng:50.55},
+  {id:'kw',name:'科威特',en:'Kuwait',ct:'asia',lat:29.3,lng:47.5},
+  {id:'ge',name:'格鲁吉亚',en:'Georgia',ct:'asia',lat:42.3,lng:43.4},
+  {id:'am',name:'亚美尼亚',en:'Armenia',ct:'asia',lat:40.1,lng:45.0},
+  {id:'az',name:'阿塞拜疆',en:'Azerbaijan',ct:'asia',lat:40.3,lng:47.9},
+  {id:'tr',name:'土耳其',en:'Turkey',ct:'asia',lat:39.0,lng:35.2},
+  {id:'cy',name:'塞浦路斯',en:'Cyprus',ct:'asia',lat:35.1,lng:33.2},
+  {id:'ru',name:'俄罗斯',en:'Russia',ct:'europe',lat:61.5,lng:90.0},
+  {id:'ua',name:'乌克兰',en:'Ukraine',ct:'europe',lat:48.4,lng:31.2},
+  {id:'by',name:'白俄罗斯',en:'Belarus',ct:'europe',lat:53.7,lng:27.9},
+  {id:'md',name:'摩尔多瓦',en:'Moldova',ct:'europe',lat:47.4,lng:28.4},
+  {id:'pl',name:'波兰',en:'Poland',ct:'europe',lat:51.9,lng:19.1},
+  {id:'cz',name:'捷克',en:'Czechia',ct:'europe',lat:49.8,lng:15.5},
+  {id:'sk',name:'斯洛伐克',en:'Slovakia',ct:'europe',lat:48.7,lng:19.5},
+  {id:'hu',name:'匈牙利',en:'Hungary',ct:'europe',lat:47.2,lng:19.5},
+  {id:'ro',name:'罗马尼亚',en:'Romania',ct:'europe',lat:45.9,lng:25.0},
+  {id:'bg',name:'保加利亚',en:'Bulgaria',ct:'europe',lat:42.7,lng:25.5},
+  {id:'rs',name:'塞尔维亚',en:'Serbia',ct:'europe',lat:44.0,lng:20.9},
+  {id:'hr',name:'克罗地亚',en:'Croatia',ct:'europe',lat:45.1,lng:15.2},
+  {id:'si',name:'斯洛文尼亚',en:'Slovenia',ct:'europe',lat:46.2,lng:15.0},
+  {id:'ba',name:'波黑',en:'Bosnia and Herzegovina',ct:'europe',lat:43.9,lng:17.7},
+  {id:'me',name:'黑山',en:'Montenegro',ct:'europe',lat:42.7,lng:19.4},
+  {id:'mk',name:'北马其顿',en:'North Macedonia',ct:'europe',lat:41.6,lng:21.7},
+  {id:'al',name:'阿尔巴尼亚',en:'Albania',ct:'europe',lat:41.2,lng:20.2},
+  {id:'gr',name:'希腊',en:'Greece',ct:'europe',lat:39.1,lng:21.8},
+  {id:'it',name:'意大利',en:'Italy',ct:'europe',lat:42.8,lng:12.6},
+  {id:'sm',name:'圣马力诺',en:'San Marino',ct:'europe',lat:43.94,lng:12.46},
+  {id:'va',name:'梵蒂冈',en:'Vatican City',ct:'europe',lat:41.9,lng:12.45},
+  {id:'mt',name:'马耳他',en:'Malta',ct:'europe',lat:35.9,lng:14.4},
+  {id:'es',name:'西班牙',en:'Spain',ct:'europe',lat:40.4,lng:-3.7},
+  {id:'pt',name:'葡萄牙',en:'Portugal',ct:'europe',lat:39.4,lng:-8.2},
+  {id:'ad',name:'安道尔',en:'Andorra',ct:'europe',lat:42.5,lng:1.6},
+  {id:'fr',name:'法国',en:'France',ct:'europe',lat:46.6,lng:2.2},
+  {id:'mc',name:'摩纳哥',en:'Monaco',ct:'europe',lat:43.74,lng:7.42},
+  {id:'gb',name:'英国',en:'United Kingdom',ct:'europe',lat:54.0,lng:-2.0},
+  {id:'ie',name:'爱尔兰',en:'Ireland',ct:'europe',lat:53.4,lng:-8.0},
+  {id:'nl',name:'荷兰',en:'Netherlands',ct:'europe',lat:52.1,lng:5.3},
+  {id:'be',name:'比利时',en:'Belgium',ct:'europe',lat:50.5,lng:4.5},
+  {id:'lu',name:'卢森堡',en:'Luxembourg',ct:'europe',lat:49.8,lng:6.1},
+  {id:'de',name:'德国',en:'Germany',ct:'europe',lat:51.2,lng:10.4},
+  {id:'ch',name:'瑞士',en:'Switzerland',ct:'europe',lat:46.8,lng:8.2},
+  {id:'li',name:'列支敦士登',en:'Liechtenstein',ct:'europe',lat:47.15,lng:9.55},
+  {id:'at',name:'奥地利',en:'Austria',ct:'europe',lat:47.5,lng:14.5},
+  {id:'dk',name:'丹麦',en:'Denmark',ct:'europe',lat:56.3,lng:9.5},
+  {id:'no',name:'挪威',en:'Norway',ct:'europe',lat:60.5,lng:8.5},
+  {id:'se',name:'瑞典',en:'Sweden',ct:'europe',lat:60.1,lng:18.6},
+  {id:'fi',name:'芬兰',en:'Finland',ct:'europe',lat:61.9,lng:25.7},
+  {id:'is',name:'冰岛',en:'Iceland',ct:'europe',lat:64.96,lng:-19.0},
+  {id:'ee',name:'爱沙尼亚',en:'Estonia',ct:'europe',lat:58.6,lng:25.0},
+  {id:'lv',name:'拉脱维亚',en:'Latvia',ct:'europe',lat:56.9,lng:24.6},
+  {id:'lt',name:'立陶宛',en:'Lithuania',ct:'europe',lat:55.2,lng:23.9},
+  {id:'eg',name:'埃及',en:'Egypt',ct:'africa',lat:26.8,lng:30.8},
+  {id:'ly',name:'利比亚',en:'Libya',ct:'africa',lat:26.3,lng:17.2},
+  {id:'tn',name:'突尼斯',en:'Tunisia',ct:'africa',lat:33.9,lng:9.5},
+  {id:'dz',name:'阿尔及利亚',en:'Algeria',ct:'africa',lat:28.0,lng:1.7},
+  {id:'ma',name:'摩洛哥',en:'Morocco',ct:'africa',lat:31.8,lng:-7.1},
+  {id:'mr',name:'毛里塔尼亚',en:'Mauritania',ct:'africa',lat:21.0,lng:-10.9},
+  {id:'ml',name:'马里',en:'Mali',ct:'africa',lat:17.6,lng:-4.0},
+  {id:'ne',name:'尼日尔',en:'Niger',ct:'africa',lat:17.6,lng:8.1},
+  {id:'td',name:'乍得',en:'Chad',ct:'africa',lat:15.5,lng:18.7},
+  {id:'sd',name:'苏丹',en:'Sudan',ct:'africa',lat:15.6,lng:30.2},
+  {id:'ss',name:'南苏丹',en:'South Sudan',ct:'africa',lat:7.9,lng:30.0},
+  {id:'et',name:'埃塞俄比亚',en:'Ethiopia',ct:'africa',lat:9.1,lng:40.5},
+  {id:'er',name:'厄立特里亚',en:'Eritrea',ct:'africa',lat:15.2,lng:39.8},
+  {id:'dj',name:'吉布提',en:'Djibouti',ct:'africa',lat:11.8,lng:42.6},
+  {id:'so',name:'索马里',en:'Somalia',ct:'africa',lat:5.2,lng:46.2},
+  {id:'ke',name:'肯尼亚',en:'Kenya',ct:'africa',lat:0.2,lng:37.9},
+  {id:'ug',name:'乌干达',en:'Uganda',ct:'africa',lat:1.4,lng:32.3},
+  {id:'rw',name:'卢旺达',en:'Rwanda',ct:'africa',lat:-1.9,lng:29.9},
+  {id:'bi',name:'布隆迪',en:'Burundi',ct:'africa',lat:-3.4,lng:29.9},
+  {id:'tz',name:'坦桑尼亚',en:'Tanzania',ct:'africa',lat:-6.4,lng:34.9},
+  {id:'sc',name:'塞舌尔',en:'Seychelles',ct:'africa',lat:-4.68,lng:55.49},
+  {id:'km',name:'科摩罗',en:'Comoros',ct:'africa',lat:-11.6,lng:43.3},
+  {id:'mg',name:'马达加斯加',en:'Madagascar',ct:'africa',lat:-18.8,lng:46.9},
+  {id:'mu',name:'毛里求斯',en:'Mauritius',ct:'africa',lat:-20.3,lng:57.6},
+  {id:'mz',name:'莫桑比克',en:'Mozambique',ct:'africa',lat:-18.7,lng:35.5},
+  {id:'mw',name:'马拉维',en:'Malawi',ct:'africa',lat:-13.3,lng:34.3},
+  {id:'zm',name:'赞比亚',en:'Zambia',ct:'africa',lat:-13.1,lng:27.8},
+  {id:'zw',name:'津巴布韦',en:'Zimbabwe',ct:'africa',lat:-19.0,lng:29.2},
+  {id:'bw',name:'博茨瓦纳',en:'Botswana',ct:'africa',lat:-22.3,lng:24.7},
+  {id:'na',name:'纳米比亚',en:'Namibia',ct:'africa',lat:-22.6,lng:17.1},
+  {id:'za',name:'南非',en:'South Africa',ct:'africa',lat:-30.6,lng:22.9},
+  {id:'ls',name:'莱索托',en:'Lesotho',ct:'africa',lat:-29.6,lng:28.2},
+  {id:'sz',name:'埃斯瓦蒂尼',en:'Eswatini',ct:'africa',lat:-26.5,lng:31.5},
+  {id:'ao',name:'安哥拉',en:'Angola',ct:'africa',lat:-11.2,lng:17.9},
+  {id:'cd',name:'刚果（金）',en:'DR Congo',ct:'africa',lat:-4.0,lng:21.8},
+  {id:'cg',name:'刚果（布）',en:'Congo',ct:'africa',lat:-0.8,lng:15.2},
+  {id:'ga',name:'加蓬',en:'Gabon',ct:'africa',lat:-0.6,lng:11.8},
+  {id:'gq',name:'赤道几内亚',en:'Equatorial Guinea',ct:'africa',lat:1.6,lng:10.5},
+  {id:'cm',name:'喀麦隆',en:'Cameroon',ct:'africa',lat:5.7,lng:12.7},
+  {id:'cf',name:'中非',en:'Central African Republic',ct:'africa',lat:6.6,lng:20.9},
+  {id:'ng',name:'尼日利亚',en:'Nigeria',ct:'africa',lat:9.1,lng:8.7},
+  {id:'bj',name:'贝宁',en:'Benin',ct:'africa',lat:9.3,lng:2.3},
+  {id:'tg',name:'多哥',en:'Togo',ct:'africa',lat:8.6,lng:0.8},
+  {id:'gh',name:'加纳',en:'Ghana',ct:'africa',lat:7.9,lng:-1.0},
+  {id:'ci',name:'科特迪瓦',en:'Cote d’Ivoire',ct:'africa',lat:7.5,lng:-5.5},
+  {id:'bf',name:'布基纳法索',en:'Burkina Faso',ct:'africa',lat:12.2,lng:-1.6},
+  {id:'sn',name:'塞内加尔',en:'Senegal',ct:'africa',lat:14.5,lng:-14.5},
+  {id:'gm',name:'冈比亚',en:'Gambia',ct:'africa',lat:13.4,lng:-15.4},
+  {id:'gw',name:'几内亚比绍',en:'Guinea-Bissau',ct:'africa',lat:11.8,lng:-15.2},
+  {id:'gn',name:'几内亚',en:'Guinea',ct:'africa',lat:10.4,lng:-10.9},
+  {id:'sl',name:'塞拉利昂',en:'Sierra Leone',ct:'africa',lat:8.5,lng:-11.8},
+  {id:'lr',name:'利比里亚',en:'Liberia',ct:'africa',lat:6.4,lng:-9.4},
+  {id:'cv',name:'佛得角',en:'Cabo Verde',ct:'africa',lat:16.0,lng:-24.0},
+  {id:'st',name:'圣多美和普林西比',en:'Sao Tome and Principe',ct:'africa',lat:0.2,lng:6.6},
+  {id:'us',name:'美国',en:'United States',ct:'north-america',lat:39.8,lng:-98.6},
+  {id:'ca',name:'加拿大',en:'Canada',ct:'north-america',lat:56.1,lng:-106.3},
+  {id:'mx',name:'墨西哥',en:'Mexico',ct:'north-america',lat:23.6,lng:-102.5},
+  {id:'gt',name:'危地马拉',en:'Guatemala',ct:'north-america',lat:15.8,lng:-90.2},
+  {id:'bz',name:'伯利兹',en:'Belize',ct:'north-america',lat:17.2,lng:-88.5},
+  {id:'hn',name:'洪都拉斯',en:'Honduras',ct:'north-america',lat:15.2,lng:-86.2},
+  {id:'sv',name:'萨尔瓦多',en:'El Salvador',ct:'north-america',lat:13.8,lng:-88.9},
+  {id:'ni',name:'尼加拉瓜',en:'Nicaragua',ct:'north-america',lat:12.9,lng:-85.2},
+  {id:'cr',name:'哥斯达黎加',en:'Costa Rica',ct:'north-america',lat:9.7,lng:-83.8},
+  {id:'pa',name:'巴拿马',en:'Panama',ct:'north-america',lat:8.5,lng:-80.8},
+  {id:'cu',name:'古巴',en:'Cuba',ct:'north-america',lat:21.5,lng:-79.5},
+  {id:'jm',name:'牙买加',en:'Jamaica',ct:'north-america',lat:18.1,lng:-77.3},
+  {id:'ht',name:'海地',en:'Haiti',ct:'north-america',lat:19.0,lng:-72.3},
+  {id:'do',name:'多米尼加',en:'Dominican Republic',ct:'north-america',lat:18.7,lng:-70.2},
+  {id:'bs',name:'巴哈马',en:'Bahamas',ct:'north-america',lat:25.0,lng:-77.4},
+  {id:'bb',name:'巴巴多斯',en:'Barbados',ct:'north-america',lat:13.2,lng:-59.5},
+  {id:'tt',name:'特立尼达和多巴哥',en:'Trinidad and Tobago',ct:'north-america',lat:10.7,lng:-61.2},
+  {id:'gd',name:'格林纳达',en:'Grenada',ct:'north-america',lat:12.1,lng:-61.7},
+  {id:'lc',name:'圣卢西亚',en:'Saint Lucia',ct:'north-america',lat:13.9,lng:-61.0},
+  {id:'vc',name:'圣文森特和格林纳丁斯',en:'Saint Vincent and the Grenadines',ct:'north-america',lat:13.2,lng:-61.2},
+  {id:'ag',name:'安提瓜和巴布达',en:'Antigua and Barbuda',ct:'north-america',lat:17.1,lng:-61.8},
+  {id:'kn',name:'圣基茨和尼维斯',en:'Saint Kitts and Nevis',ct:'north-america',lat:17.3,lng:-62.7},
+  {id:'dm',name:'多米尼克',en:'Dominica',ct:'north-america',lat:15.4,lng:-61.4},
+  {id:'br',name:'巴西',en:'Brazil',ct:'south-america',lat:-14.2,lng:-51.9},
+  {id:'ar',name:'阿根廷',en:'Argentina',ct:'south-america',lat:-38.4,lng:-63.6},
+  {id:'cl',name:'智利',en:'Chile',ct:'south-america',lat:-35.7,lng:-71.5},
+  {id:'pe',name:'秘鲁',en:'Peru',ct:'south-america',lat:-9.2,lng:-75.0},
+  {id:'co',name:'哥伦比亚',en:'Colombia',ct:'south-america',lat:4.6,lng:-74.3},
+  {id:'ve',name:'委内瑞拉',en:'Venezuela',ct:'south-america',lat:6.4,lng:-66.6},
+  {id:'ec',name:'厄瓜多尔',en:'Ecuador',ct:'south-america',lat:-1.8,lng:-78.2},
+  {id:'bo',name:'玻利维亚',en:'Bolivia',ct:'south-america',lat:-16.3,lng:-63.6},
+  {id:'py',name:'巴拉圭',en:'Paraguay',ct:'south-america',lat:-23.4,lng:-58.4},
+  {id:'uy',name:'乌拉圭',en:'Uruguay',ct:'south-america',lat:-32.5,lng:-55.8},
+  {id:'gy',name:'圭亚那',en:'Guyana',ct:'south-america',lat:4.9,lng:-58.9},
+  {id:'sr',name:'苏里南',en:'Suriname',ct:'south-america',lat:3.9,lng:-56.0},
+  {id:'au',name:'澳大利亚',en:'Australia',ct:'oceania',lat:-25.3,lng:133.8},
+  {id:'nz',name:'新西兰',en:'New Zealand',ct:'oceania',lat:-40.9,lng:174.9},
+  {id:'pg',name:'巴布亚新几内亚',en:'Papua New Guinea',ct:'oceania',lat:-6.3,lng:143.9},
+  {id:'fj',name:'斐济',en:'Fiji',ct:'oceania',lat:-17.7,lng:178.1},
+  {id:'sb',name:'所罗门群岛',en:'Solomon Islands',ct:'oceania',lat:-9.6,lng:160.2},
+  {id:'vu',name:'瓦努阿图',en:'Vanuatu',ct:'oceania',lat:-15.4,lng:166.9},
+  {id:'ws',name:'萨摩亚',en:'Samoa',ct:'oceania',lat:-13.8,lng:-172.1},
+  {id:'to',name:'汤加',en:'Tonga',ct:'oceania',lat:-21.2,lng:-175.2},
+  {id:'tv',name:'图瓦卢',en:'Tuvalu',ct:'oceania',lat:-8.5,lng:179.2},
+  {id:'ki',name:'基里巴斯',en:'Kiribati',ct:'oceania',lat:1.9,lng:173.0},
+  {id:'nr',name:'瑙鲁',en:'Nauru',ct:'oceania',lat:-0.53,lng:166.93},
+  {id:'mh',name:'马绍尔群岛',en:'Marshall Islands',ct:'oceania',lat:7.1,lng:171.4},
+  {id:'fm',name:'密克罗尼西亚',en:'Micronesia',ct:'oceania',lat:7.4,lng:151.9},
+  {id:'pw',name:'帕劳',en:'Palau',ct:'oceania',lat:7.5,lng:134.6}
+];
+const WORLD = [
+  {id:'tokyo',name:'东京',en:'Tokyo',c:'jp',lat:35.6895,lng:139.6917},
+  {id:'osa',name:'大阪',en:'Osaka',c:'jp',lat:34.6937,lng:135.5023},
+  {id:'kyo',name:'京都',en:'Kyoto',c:'jp',lat:35.0116,lng:135.7681},
+  {id:'spk',name:'札幌',en:'Sapporo',c:'jp',lat:43.0618,lng:141.3545},
+  {id:'seoul',name:'首尔',en:'Seoul',c:'kr',lat:37.5665,lng:126.978},
+  {id:'pus',name:'釜山',en:'Busan',c:'kr',lat:35.1796,lng:129.0756},
+  {id:'jeju',name:'济州',en:'Jeju',c:'kr',lat:33.4996,lng:126.5312},
+  {id:'singapore',name:'新加坡',en:'Singapore',c:'sg',lat:1.3521,lng:103.8198},
+  {id:'bangkok',name:'曼谷',en:'Bangkok',c:'th',lat:13.7563,lng:100.5018},
+  {id:'cnx',name:'清迈',en:'Chiang Mai',c:'th',lat:18.7883,lng:98.9853},
+  {id:'hkt',name:'普吉',en:'Phuket',c:'th',lat:7.8804,lng:98.3923},
+  {id:'kul',name:'吉隆坡',en:'Kuala Lumpur',c:'my',lat:3.139,lng:101.6869},
+  {id:'bali',name:'巴厘岛',en:'Bali',c:'id',lat:-8.4095,lng:115.1889},
+  {id:'jkt',name:'雅加达',en:'Jakarta',c:'id',lat:-6.2088,lng:106.8456},
+  {id:'han',name:'河内',en:'Hanoi',c:'vn',lat:21.0278,lng:105.8342},
+  {id:'hcm',name:'胡志明市',en:'Ho Chi Minh City',c:'vn',lat:10.8231,lng:106.6297},
+  {id:'london',name:'伦敦',en:'London',c:'gb',lat:51.5074,lng:-0.1278},
+  {id:'edi',name:'爱丁堡',en:'Edinburgh',c:'gb',lat:55.9533,lng:-3.1883},
+  {id:'paris',name:'巴黎',en:'Paris',c:'fr',lat:48.8566,lng:2.3522},
+  {id:'nce',name:'尼斯',en:'Nice',c:'fr',lat:43.7102,lng:7.262},
+  {id:'rome',name:'罗马',en:'Rome',c:'it',lat:41.9028,lng:12.4964},
+  {id:'mil',name:'米兰',en:'Milan',c:'it',lat:45.4642,lng:9.19},
+  {id:'ven',name:'威尼斯',en:'Venice',c:'it',lat:45.4408,lng:12.3155},
+  {id:'berlin',name:'柏林',en:'Berlin',c:'de',lat:52.52,lng:13.405},
+  {id:'mun',name:'慕尼黑',en:'Munich',c:'de',lat:48.1351,lng:11.582},
+  {id:'zrh',name:'苏黎世',en:'Zurich',c:'ch',lat:47.3769,lng:8.5417},
+  {id:'int',name:'因特拉肯',en:'Interlaken',c:'ch',lat:46.6863,lng:7.8632},
+  {id:'bcn',name:'巴塞罗那',en:'Barcelona',c:'es',lat:41.3874,lng:2.1686},
+  {id:'mad',name:'马德里',en:'Madrid',c:'es',lat:40.4168,lng:-3.7038},
+  {id:'moscow',name:'莫斯科',en:'Moscow',c:'ru',lat:55.7558,lng:37.6173},
+  {id:'led',name:'圣彼得堡',en:'Saint Petersburg',c:'ru',lat:59.9311,lng:30.3609},
+  {id:'ist',name:'伊斯坦布尔',en:'Istanbul',c:'tr',lat:41.0082,lng:28.9784},
+  {id:'dubai',name:'迪拜',en:'Dubai',c:'ae',lat:25.2048,lng:55.2708},
+  {id:'auh',name:'阿布扎比',en:'Abu Dhabi',c:'ae',lat:24.4539,lng:54.3773},
+  {id:'cai',name:'开罗',en:'Cairo',c:'eg',lat:30.0444,lng:31.2357},
+  {id:'newyork',name:'纽约',en:'New York',c:'us',lat:40.7128,lng:-74.006},
+  {id:'la',name:'洛杉矶',en:'Los Angeles',c:'us',lat:34.0522,lng:-118.2437},
+  {id:'sfo',name:'旧金山',en:'San Francisco',c:'us',lat:37.7749,lng:-122.4194},
+  {id:'hnl',name:'檀香山',en:'Honolulu',c:'us',lat:21.3069,lng:-157.8583},
+  {id:'vancouver',name:'温哥华',en:'Vancouver',c:'ca',lat:49.2827,lng:-123.1207},
+  {id:'yyz',name:'多伦多',en:'Toronto',c:'ca',lat:43.6532,lng:-79.3832},
+  {id:'sydney',name:'悉尼',en:'Sydney',c:'au',lat:-33.8688,lng:151.2093},
+  {id:'mel',name:'墨尔本',en:'Melbourne',c:'au',lat:-37.8136,lng:144.9631},
+  {id:'auckland',name:'奥克兰',en:'Auckland',c:'nz',lat:-36.8485,lng:174.7633},
+  {id:'zqn',name:'皇后镇',en:'Queenstown',c:'nz',lat:-45.0312,lng:168.6626},
+  {id:'rio',name:'里约热内卢',en:'Rio de Janeiro',c:'br',lat:-22.9068,lng:-43.1729},
+  {id:'oka',name:'冲绳',en:'Okinawa',c:'jp',lat:26.2124,lng:127.6809},
+  {id:'fuk',name:'福冈',en:'Fukuoka',c:'jp',lat:33.5904,lng:130.4017},
+  {id:'kju',name:'庆州',en:'Gyeongju',c:'kr',lat:35.8562,lng:129.2247},
+  {id:'pty',name:'芭提雅',en:'Pattaya',c:'th',lat:12.9236,lng:100.8825},
+  {id:'dad',name:'岘港',en:'Da Nang',c:'vn',lat:16.0544,lng:108.2022},
+  {id:'pen',name:'槟城',en:'Penang',c:'my',lat:5.4164,lng:100.3327},
+  {id:'jog',name:'日惹',en:'Yogyakarta',c:'id',lat:-7.7956,lng:110.3695},
+  {id:'mnl',name:'马尼拉',en:'Manila',c:'ph',lat:14.5995,lng:120.9842},
+  {id:'ceb',name:'宿务',en:'Cebu',c:'ph',lat:10.3157,lng:123.8854},
+  {id:'pnh',name:'金边',en:'Phnom Penh',c:'kh',lat:11.5564,lng:104.9282},
+  {id:'rep',name:'暹粒',en:'Siem Reap',c:'kh',lat:13.3671,lng:103.8448},
+  {id:'lpq',name:'琅勃拉邦',en:'Luang Prabang',c:'la',lat:19.8863,lng:102.135},
+  {id:'rgn',name:'仰光',en:'Yangon',c:'mm',lat:16.8409,lng:96.1735},
+  {id:'del',name:'新德里',en:'New Delhi',c:'in',lat:28.6139,lng:77.209},
+  {id:'bom',name:'孟买',en:'Mumbai',c:'in',lat:19.076,lng:72.8777},
+  {id:'jai',name:'斋普尔',en:'Jaipur',c:'in',lat:26.9124,lng:75.7873},
+  {id:'cmb',name:'科伦坡',en:'Colombo',c:'lk',lat:6.9271,lng:79.8612},
+  {id:'ktm',name:'加德满都',en:'Kathmandu',c:'np',lat:27.7172,lng:85.324},
+  {id:'mle',name:'马累',en:'Male',c:'mv',lat:4.1755,lng:73.5093},
+  {id:'ruh',name:'利雅得',en:'Riyadh',c:'sa',lat:24.7136,lng:46.6753},
+  {id:'jed',name:'吉达',en:'Jeddah',c:'sa',lat:21.4858,lng:39.1925},
+  {id:'doh',name:'多哈',en:'Doha',c:'qa',lat:25.2854,lng:51.531},
+  {id:'jrs',name:'耶路撒冷',en:'Jerusalem',c:'il',lat:31.7683,lng:35.2137},
+  {id:'tlv',name:'特拉维夫',en:'Tel Aviv',c:'il',lat:32.0853,lng:34.7818},
+  {id:'amm',name:'安曼',en:'Amman',c:'jo',lat:31.9539,lng:35.9106},
+  {id:'thr',name:'德黑兰',en:'Tehran',c:'ir',lat:35.6892,lng:51.389},
+  {id:'tbs',name:'第比利斯',en:'Tbilisi',c:'ge',lat:41.7151,lng:44.8271},
+  {id:'gyd',name:'巴库',en:'Baku',c:'az',lat:40.4093,lng:49.8671},
+  {id:'ala',name:'阿拉木图',en:'Almaty',c:'kz',lat:43.222,lng:76.8512},
+  {id:'skd',name:'撒马尔罕',en:'Samarkand',c:'uz',lat:39.627,lng:66.975},
+  {id:'uln',name:'乌兰巴托',en:'Ulaanbaatar',c:'mn',lat:47.8864,lng:106.9057},
+  {id:'fnj',name:'平壤',en:'Pyongyang',c:'kp',lat:39.0392,lng:125.7625},
+  {id:'ams',name:'阿姆斯特丹',en:'Amsterdam',c:'nl',lat:52.3676,lng:4.9041},
+  {id:'bru',name:'布鲁塞尔',en:'Brussels',c:'be',lat:50.8503,lng:4.3517},
+  {id:'bgs',name:'布鲁日',en:'Bruges',c:'be',lat:51.2093,lng:3.2247},
+  {id:'lis',name:'里斯本',en:'Lisbon',c:'pt',lat:38.7223,lng:-9.1393},
+  {id:'opr',name:'波尔图',en:'Porto',c:'pt',lat:41.1579,lng:-8.6291},
+  {id:'ath',name:'雅典',en:'Athens',c:'gr',lat:37.9838,lng:23.7275},
+  {id:'jtr',name:'圣托里尼',en:'Santorini',c:'gr',lat:36.3932,lng:25.4615},
+  {id:'vie',name:'维也纳',en:'Vienna',c:'at',lat:48.2082,lng:16.3738},
+  {id:'prg',name:'布拉格',en:'Prague',c:'cz',lat:50.0755,lng:14.4378},
+  {id:'krk',name:'克拉科夫',en:'Krakow',c:'pl',lat:50.0647,lng:19.945},
+  {id:'bud',name:'布达佩斯',en:'Budapest',c:'hu',lat:47.4979,lng:19.0402},
+  {id:'dbv',name:'杜布罗夫尼克',en:'Dubrovnik',c:'hr',lat:42.6507,lng:18.0944},
+  {id:'lju',name:'卢布尔雅那',en:'Ljubljana',c:'si',lat:46.0569,lng:14.5058},
+  {id:'rey',name:'雷克雅未克',en:'Reykjavik',c:'is',lat:64.1466,lng:-21.9426},
+  {id:'osl',name:'奥斯陆',en:'Oslo',c:'no',lat:59.9139,lng:10.7522},
+  {id:'bgo',name:'卑尔根',en:'Bergen',c:'no',lat:60.3913,lng:5.3221},
+  {id:'sto',name:'斯德哥尔摩',en:'Stockholm',c:'se',lat:59.3293,lng:18.0686},
+  {id:'hel',name:'赫尔辛基',en:'Helsinki',c:'fi',lat:60.1699,lng:24.9384},
+  {id:'rvn',name:'罗瓦涅米',en:'Rovaniemi',c:'fi',lat:66.5039,lng:25.7294},
+  {id:'cph',name:'哥本哈根',en:'Copenhagen',c:'dk',lat:55.6761,lng:12.5683},
+  {id:'dub',name:'都柏林',en:'Dublin',c:'ie',lat:53.3498,lng:-6.2603},
+  {id:'kie',name:'基辅',en:'Kyiv',c:'ua',lat:50.4501,lng:30.5234},
+  {id:'buh',name:'布加勒斯特',en:'Bucharest',c:'ro',lat:44.4268,lng:26.1025},
+  {id:'sof',name:'索非亚',en:'Sofia',c:'bg',lat:42.6977,lng:23.3219},
+  {id:'beg',name:'贝尔格莱德',en:'Belgrade',c:'rs',lat:44.7866,lng:20.4489},
+  {id:'sjj',name:'萨拉热窝',en:'Sarajevo',c:'ba',lat:43.8563,lng:18.4131},
+  {id:'tgd',name:'科托尔',en:'Kotor',c:'me',lat:42.4247,lng:18.7712},
+  {id:'skp',name:'斯科普里',en:'Skopje',c:'mk',lat:41.9973,lng:21.428},
+  {id:'tia',name:'地拉那',en:'Tirana',c:'al',lat:41.3275,lng:19.8187},
+  {id:'mla',name:'瓦莱塔',en:'Valletta',c:'mt',lat:35.8989,lng:14.5146},
+  {id:'nic',name:'尼科西亚',en:'Nicosia',c:'cy',lat:35.1856,lng:33.3823},
+  {id:'tll',name:'塔林',en:'Tallinn',c:'ee',lat:59.437,lng:24.7536},
+  {id:'rix',name:'里加',en:'Riga',c:'lv',lat:56.9496,lng:24.1052},
+  {id:'vno',name:'维尔纽斯',en:'Vilnius',c:'lt',lat:54.6872,lng:25.2797},
+  {id:'kiv',name:'基希讷乌',en:'Chisinau',c:'md',lat:47.0105,lng:28.8638},
+  {id:'bts',name:'布拉迪斯拉发',en:'Bratislava',c:'sk',lat:48.1486,lng:17.1077},
+  {id:'msq',name:'明斯克',en:'Minsk',c:'by',lat:53.9045,lng:27.5615},
+  {id:'ikt',name:'伊尔库茨克',en:'Irkutsk',c:'ru',lat:52.287,lng:104.2807},
+  {id:'vvo',name:'海参崴',en:'Vladivostok',c:'ru',lat:43.1155,lng:131.8855},
+  {id:'capp',name:'卡帕多奇亚',en:'Cappadocia',c:'tr',lat:38.6431,lng:34.8289},
+  {id:'lxr',name:'卢克索',en:'Luxor',c:'eg',lat:25.6872,lng:32.6396},
+  {id:'mex',name:'墨西哥城',en:'Mexico City',c:'mx',lat:19.4326,lng:-99.1332},
+  {id:'cun',name:'坎昆',en:'Cancun',c:'mx',lat:21.1619,lng:-86.8515},
+  {id:'hav',name:'哈瓦那',en:'Havana',c:'cu',lat:23.1136,lng:-82.3666},
+  {id:'bue',name:'布宜诺斯艾利斯',en:'Buenos Aires',c:'ar',lat:-34.6037,lng:-58.3816},
+  {id:'lim',name:'利马',en:'Lima',c:'pe',lat:-12.0464,lng:-77.0428},
+  {id:'cus',name:'库斯科',en:'Cusco',c:'pe',lat:-13.5319,lng:-71.9675},
+  {id:'scl',name:'圣地亚哥',en:'Santiago',c:'cl',lat:-33.4489,lng:-70.6693},
+  {id:'bog',name:'波哥大',en:'Bogota',c:'co',lat:4.711,lng:-74.0721},
+  {id:'cpt',name:'开普敦',en:'Cape Town',c:'za',lat:-33.9249,lng:18.4241},
+  {id:'jnb',name:'约翰内斯堡',en:'Johannesburg',c:'za',lat:-26.2041,lng:28.0473},
+  {id:'cas',name:'卡萨布兰卡',en:'Casablanca',c:'ma',lat:33.5731,lng:-7.5898},
+  {id:'rak',name:'马拉喀什',en:'Marrakesh',c:'ma',lat:31.6295,lng:-7.9811},
+  {id:'nbo',name:'内罗毕',en:'Nairobi',c:'ke',lat:-1.2921,lng:36.8219},
+  {id:'znz',name:'桑给巴尔',en:'Zanzibar',c:'tz',lat:-6.1659,lng:39.2026},
+  {id:'mru',name:'路易港',en:'Port Louis',c:'mu',lat:-20.1609,lng:57.5012},
+  {id:'nadi',name:'楠迪',en:'Nadi',c:'fj',lat:-17.7765,lng:177.4356},
+  {id:'chi',name:'芝加哥',en:'Chicago',c:'us',lat:41.8781,lng:-87.6298},
+  {id:'las',name:'拉斯维加斯',en:'Las Vegas',c:'us',lat:36.1699,lng:-115.1398},
+  {id:'man',name:'曼彻斯特',en:'Manchester',c:'gb',lat:53.4808,lng:-2.2426},
+  {id:'lys',name:'里昂',en:'Lyon',c:'fr',lat:45.764,lng:4.8357},
+  {id:'flr',name:'佛罗伦萨',en:'Florence',c:'it',lat:43.7696,lng:11.2558},
+  {id:'fra',name:'法兰克福',en:'Frankfurt',c:'de',lat:50.1109,lng:8.6821},
+  {id:'svq',name:'塞维利亚',en:'Seville',c:'es',lat:37.3891,lng:-5.9845},
+  {id:'gva',name:'日内瓦',en:'Geneva',c:'ch',lat:46.2044,lng:6.1432},
+  {id:'sao',name:'圣保罗',en:'Sao Paulo',c:'br',lat:-23.5505,lng:-46.6333},
+  {id:'per',name:'珀斯',en:'Perth',c:'au',lat:-31.9505,lng:115.8605},
+  {id:'cei',name:'清莱',en:'Chiang Rai',c:'th',lat:19.9105,lng:99.8406}
+];
+/* ===== 地点唯一键命名空间（2026-11-22）=====
+   背景：CHINA / CN_CITIES 的 id 与 ISO 3166 国家码有 33 处撞车（'es' 既是恩施又是西班牙、
+   'sg' 既是韶关又是新加坡、'my' 既是绵阳又是马来西亚、'pt' 既是莆田又是葡萄牙…）。
+   state 四个 bucket 相互隔离不受影响，但地点日记以 placeId 作外键，裸 id 会让两地/两国
+   的日记串档（给西班牙写日记，恩施的按钮也会跟着 +1）。故给每张表条目挂带表前缀的唯一键 k，
+   日记只认 k；state 数组仍存裸 id，与历史数据完全兼容。 */
+function addKey(arr,pre){arr.forEach(x=>{x.k=pre+x.id;});}
+addKey(CHINA,'c:');addKey(CN_CITIES,'cc:');addKey(WORLD_COUNTRIES,'w:');addKey(WORLD,'wc:');
+/* 大洲分组，数组顺序即清单显示顺序 */
+const CONTINENTS=[['asia','亚洲'],['europe','欧洲'],['africa','非洲'],['north-america','北美洲'],['south-america','南美洲'],['oceania','大洋洲']];
+/* 搜索命中：中文名 / 英文名 / 两位国家码，均为小写包含匹配 */
+function hit(p,kw){
+  if(!kw)return true;
+  const q=String(kw).toLowerCase();
+  return p.name.toLowerCase().indexOf(q)>=0
+    || (p.en||'').toLowerCase().indexOf(q)>=0
+    || p.id===q;
+}
+const KEY='wb_travel_map_v1';
+/* litAt：点亮时刻表 { 唯一键k: {t:毫秒, n:地名} }。v26 新增，供「时间线」页串联事件。
+   值里存地名，是因为时间线页不加载 550 条地名表也能显示「点亮了葡萄牙」；
+   旧数据没有这个字段，一律按「时刻未知」处理，绝不伪造成当前时间。 */
+let state={china:[],world:[],cnCities:[],worldCountries:[],litAt:{}};
+try{
+  const s=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(s&&typeof s==='object'){
+    state={
+      china:Array.isArray(s.china)?s.china:[],
+      world:Array.isArray(s.world)?s.world: [],
+      cnCities:Array.isArray(s.cnCities)?s.cnCities:[],
+      worldCountries:Array.isArray(s.worldCountries)?s.worldCountries:[],
+      litAt:(s.litAt&&typeof s.litAt==='object'&&!Array.isArray(s.litAt))?s.litAt:{}
+    };
+  }
+}catch(e){ toast('历史点亮读取失败，已按空白状态开始'); }
+function stampLit(p,on){
+  if(!p||!p.k)return;
+  if(!state.litAt||typeof state.litAt!=='object')state.litAt={};
+  if(on)state.litAt[p.k]={t:Date.now(),n:p.name};
+  else delete state.litAt[p.k];
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('保存失败：点亮未写入本机，请检查浏览器存储权限');}}
+let region='china', level='province';
+const listEl=document.getElementById('list');
+const statEl=document.getElementById('stat');
+const asideH=document.getElementById('asideH');
+const searchEl=document.getElementById('search');
+const hintEl=document.getElementById('hint');
+/* M-1（2026-11-21 批一）：地图引擎可用性守卫。
+   原实现顶层直接 new TMap.Map，一旦 CDN/key/离线导致 TMap 未定义，
+   整个 script 中断，点亮+日记全失效。现改为软降级：地图不可用时仅隐藏底图标记，
+   地点清单与日记 CRUD 照常工作，并给出可见提示。 */
+let map=null, MAP_OK=false;
+try{
+  if(typeof TMap!=='undefined' && TMap.Map && !window.__TMapLoadFailed){
+    map=new TMap.Map('map',{center:new TMap.LatLng(35.5,104),zoom:4});
+    MAP_OK=true;
+  }
+}catch(e){ MAP_OK=false; }
+if(!MAP_OK){
+  try{
+    const mc=document.getElementById('map');
+    if(mc) mc.insertAdjacentHTML('afterbegin','<div class="map-fallback" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:13px;line-height:1.7;z-index:2;background:var(--card)">地图引擎加载失败，底图与标记暂不可用<br>地点清单、点亮记录与日记仍可正常使用</div>');
+  }catch(_){}
+  try{toast('地图引擎加载失败，已切换为清单模式');}catch(_){}
+}
+function pin(color,r,halo){
+  const s='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">'
+    +(halo?'<circle cx="16" cy="16" r="15" fill="none" stroke="'+color+'" stroke-opacity="0.32" stroke-width="2"/>':'')
+    +'<circle cx="16" cy="16" r="'+r+'" fill="'+color+'" stroke="#fff" stroke-width="2.5"/></svg>';
+  return 'data:image/svg+xml,'+encodeURIComponent(s);
+}
+/* M-1：MarkerStyle 延迟到引擎可用时构造，避免 TMap 未定义时顶层抛错 */
+let styles=null;
+function ensureStyles(){
+  if(styles || !MAP_OK) return styles;
+  styles={
+    /* dim 由 22 缩到 20：世界国家层 194 个标记在 zoom 3 下密集重叠，点小一点少一点误触；
+       lit 保持 32 不变，已点亮的是回看对象，优先保证可见性 */
+    dim:new TMap.MarkerStyle({width:20,height:20,anchor:{x:10,y:10},src:pin('#aab4c4',5,false)}),
+    lit:new TMap.MarkerStyle({width:32,height:32,anchor:{x:16,y:16},src:pin('#4F7CFF',9,true)})
+  };
+  return styles;
+}
+let markerLayer=null;
+
+/* ===== 地点日记 + 照片（IndexedDB 本地大容量存储） ===== */
+const DIARY_DB='wb_travel_diary_db';
+let _dbp=null;
+function openDB(){
+  if(_dbp)return _dbp;
+  _dbp=new Promise((res,rej)=>{
+    let req;
+    try{req=indexedDB.open(DIARY_DB,1);}catch(e){rej(e);return;}
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains('diaries')){
+        const s=db.createObjectStore('diaries',{keyPath:'id'});
+        s.createIndex('placeId','placeId',{unique:false});
+      }
+      if(!db.objectStoreNames.contains('photos')){
+        const s=db.createObjectStore('photos',{keyPath:'id'});
+        s.createIndex('diaryId','diaryId',{unique:false});
+      }
+    };
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+    req.onblocked=()=>rej(new Error('db blocked'));
+  });
+  return _dbp;
+}
+function idbAll(store){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const r=db.transaction(store,'readonly').objectStore(store).getAll();
+    r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);
+  }));
+}
+function idbGet(store,key){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const r=db.transaction(store,'readonly').objectStore(store).get(key);
+    r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error);
+  }));
+}
+function idbPut(store,val){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    const r=tx.objectStore(store).put(val);
+    tx.oncomplete=()=>res(r.result);tx.onerror=()=>rej(tx.error);
+  }));
+}
+function idbDel(store,key){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);
+  }));
+}
+function uid(p){return (p||'d')+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+let diaryCounts=Object.create(null);
+const diaryMaskEl=document.getElementById('diaryMask');
+const dListEl=document.getElementById('dList');
+const dThumbsEl=document.getElementById('dThumbs');
+const dFileEl=document.getElementById('dFile');
+let curPlace=null,curDiaries=[],pendingPhotos=[],existingPhotoIds=[],removedPhotoIds=[],photoThumbMap=Object.create(null),editingMeta={};
+/* S-3 异步缩略图任务 / S-4 保存幂等锁 / S-1 弹窗焦点归还 */
+let pendingThumbJobs=[],saving=false,_diaryLastFocus=null,_diaryLastPid=null;
+const MAX_PHOTO=12*1024*1024;  /* S-5：单张照片上限 12MB，避免 IndexedDB 与内存峰值失控 */
+
+function refreshCounts(){
+  return idbAll('diaries').then(ds=>{
+    diaryCounts=Object.create(null);
+    ds.forEach(d=>{diaryCounts[d.placeId]=(diaryCounts[d.placeId]||0)+1;});
+    renderList();
+  }).catch(()=>{});
+}
+function findPlace(k){
+  return CHINA.concat(CN_CITIES,WORLD_COUNTRIES,WORLD).find(x=>x.k===k)||null;
+}
+/* 旧日记 placeId 迁移：早期存的是裸 id，按当时的查找顺序（CHINA→CN_CITIES→WORLD_COUNTRIES→WORLD）
+   判定归属，因此迁移结果与历史显示完全一致——不会把恩施的日记挪给西班牙。幂等，只跑一次。 */
+function legacyKey(pid){
+  let t=CHINA.find(x=>x.id===pid);if(t)return t.k;
+  t=CN_CITIES.find(x=>x.id===pid);if(t)return t.k;
+  t=WORLD_COUNTRIES.find(x=>x.id===pid);if(t)return t.k;
+  t=WORLD.find(x=>x.id===pid);if(t)return t.k;
+  return null;
+}
+let _keysMigrated=false;
+function migrateDiaryKeys(){
+  if(_keysMigrated)return Promise.resolve();
+  return idbAll('diaries').then(ds=>{
+    const jobs=[];
+    ds.forEach(d=>{
+      if(!d||typeof d.placeId!=='string'||d.placeId.indexOf(':')>=0)return;
+      const k=legacyKey(d.placeId);
+      if(!k)return;
+      d.placeId=k;jobs.push(idbPut('diaries',d));
+    });
+    _keysMigrated=true;
+    return jobs.length?Promise.all(jobs):null;
+  }).catch(()=>{_keysMigrated=true;});
+}
+
+function isCityMode(){return level==='city';}
+function parentKey(){return region==='china'?'p':'c';}
+function parentList(){return region==='china'?CHINA:WORLD_COUNTRIES;}
+function childList(){return region==='china'?CN_CITIES:WORLD;}
+function parentBucket(){return region==='china'?'china':'worldCountries';}
+function childBucket(){return region==='china'?'cnCities':'world';}
+function points(){return isCityMode()?childList():parentList();}
+function bucket(){return isCityMode()?childBucket():parentBucket();}
+function isOn(id){return state[bucket()].indexOf(id)>=0;}
+function placeHtml(p){
+  const on=isOn(p.id);
+  const n=diaryCounts[p.k]||0;
+  return '<div class="prow"><button type="button" class="place'+(on?' on':'')+'" data-id="'+p.id+'" aria-pressed="'+on+'"><span class="dot"></span><span class="nm">'+p.name+'</span>'+(p.meta?'<span class="meta">'+p.meta+'</span>':'')+'</button>'
+    +'<button type="button" class="dbtn'+(n?' has':'')+'" data-diary="'+p.k+'" title="写地点日记" aria-label="'+esc(p.name)+' 的日记'+(n?'，'+n+' 篇':'')+'">'+(n?'日记 '+n:'日记')+'</button></div>';
+}
+function renderList(){
+  const kw=(searchEl.value||'').trim().toLowerCase();
+  if(region==='world' && !isCityMode()){
+    /* 世界 · 国家：194 个平铺无法浏览，按大洲分组；组头显示该洲点亮进度 */
+    let html='';
+    CONTINENTS.forEach(function(c){
+      const list=WORLD_COUNTRIES.filter(function(x){return x.ct===c[0]&&hit(x,kw);});
+      if(!list.length)return;
+      const lit=list.filter(function(x){return state.worldCountries.indexOf(x.id)>=0;}).length;
+      html+='<div class="grp"><div class="grp-h"><span>'+c[1]+'</span><span>'+lit+' / '+list.length+'</span></div>'+list.map(placeHtml).join('')+'</div>';
+    });
+    listEl.innerHTML=html||'<p class="hint">没有匹配的国家</p>';
+    return;
+  }
+  if(!isCityMode()){listEl.innerHTML=points().map(placeHtml).join('');return;}
+  let html='';
+  parentList().forEach(par=>{
+    let cities=childList().filter(c=>c[parentKey()]===par.id);
+    if(kw)cities=cities.filter(c=>hit(c,kw)||hit(par,kw));
+    if(!cities.length)return;
+    const lit=cities.filter(c=>state[childBucket()].includes(c.id)).length;
+    html+='<div class="grp"><div class="grp-h"><span>'+par.name+'</span><span>'+lit+' / '+cities.length+'</span></div>'+cities.map(placeHtml).join('')+'</div>';
+  });
+  listEl.innerHTML=html||'<p class="hint">没有匹配的城市</p>';
+}
+/* 搜索时清单与地图标记同步过滤：只留命中项，避免 194 个标记在 zoom 3 下糊成一片 */
+function visiblePoints(){
+  const kw=(searchEl.value||'').trim().toLowerCase();
+  return kw?points().filter(function(p){return hit(p,kw);}):points();
+}
+function renderMarkers(){
+  if(!MAP_OK || !map) return;   /* M-1：引擎不可用跳过标记渲染，清单仍可点亮 */
+  const geos=visiblePoints().map(p=>({id:p.id,styleId:isOn(p.id)?'lit':'dim',position:new TMap.LatLng(p.lat,p.lng)}));
+  if(!markerLayer){
+    markerLayer=new TMap.MultiMarker({map:map,styles:ensureStyles(),geometries:geos});
+    markerLayer.on('click',e=>{if(e&&e.geometry&&e.geometry.id)toggle(e.geometry.id);});
+  }else{
+    markerLayer.setGeometries(geos);
+  }
+}
+function updateStat(){
+  const total=points().length, done=state[bucket()].length;
+  const label=region==='china'?(isCityMode()?'中国 · 城市':'中国 · 省份'):(isCityMode()?'世界 · 城市':'世界 · 国家');
+  statEl.textContent=label+' · 已点亮 '+done+' / '+total;
+}
+function renderAll(){renderList();renderMarkers();updateStat();}
+function syncParent(pid,on){
+  const arr=state[parentBucket()];
+  if(on){if(arr.indexOf(pid)<0)arr.push(pid);}   /* 合成点亮不写 litAt：用户点的是城市，不是省份 */
+  else{
+    const still=childList().some(c=>c[parentKey()]===pid&&state[childBucket()].includes(c.id));
+    if(!still){
+      const i=arr.indexOf(pid);
+      if(i>=0){
+        arr.splice(i,1);
+        /* 省份被「最后一个城市取消」连带撤销时，必须同时清掉它自己的点亮时刻，
+           否则时间线会留一条「点亮过广东」而地图上广东已经不亮。 */
+        const pp=parentList().find(x=>x.id===pid);
+        if(pp)stampLit(pp,false);
+      }
+    }
+  }
+}
+function toggle(id){
+  /* S-6：重绘前记录键盘焦点所在的列表项 id，renderAll 重建 DOM 后还原，避免键盘用户焦点丢失 */
+  const focusId=(document.activeElement&&document.activeElement.dataset&&document.activeElement.classList.contains('place'))
+    ?document.activeElement.dataset.id:null;
+  const _p=(isCityMode()?childList():parentList()).find(x=>x.id===id);
+  if(isCityMode()){
+    const c=childList().find(x=>x.id===id);
+    const arr=state[childBucket()];
+    const i=arr.indexOf(id);
+    if(i>=0){arr.splice(i,1);stampLit(_p,false);if(c)syncParent(c[parentKey()],false);}
+    else{arr.push(id);stampLit(_p,true);if(c)syncParent(c[parentKey()],true);}
+  }else{
+    const arr=state[parentBucket()], i=arr.indexOf(id);
+    if(i>=0){arr.splice(i,1);stampLit(_p,false);}else{arr.push(id);stampLit(_p,true);}
+  }
+  save();renderAll();
+  if(focusId){const el=Array.prototype.find.call(listEl.querySelectorAll('.place'),x=>x.dataset.id===focusId);if(el)el.focus();}
+}
+listEl.addEventListener('click',e=>{
+  const d=e.target.closest('[data-diary]');
+  if(d){openDiary(d.dataset.diary);return;}
+  const b=e.target.closest('.place');
+  if(b)toggle(b.dataset.id);
+});
+/* 搜索同时承担「过滤清单/标记」与「地图定位」：小国标记在世界视图下密集重叠点不到，
+   命中唯一结果时直接飞到该点。260ms 防抖，避免每敲一个字就跳。 */
+let _flyTimer=null;
+searchEl.addEventListener('input',function(){
+  renderAll();
+  if(_flyTimer)clearTimeout(_flyTimer);
+  _flyTimer=setTimeout(function(){
+    if(!MAP_OK||!map)return;
+    const kw=(searchEl.value||'').trim();
+    if(kw.length<2)return;
+    const one=visiblePoints();
+    if(one.length===1){map.setCenter(new TMap.LatLng(one[0].lat,one[0].lng));map.setZoom(5);}
+  },260);
+});
+/* 批三：切层级/切区域时旧搜索词会继续过滤新清单（中国搜「广东」切到世界，清单看似空白其实是残留过滤）。
+   统一在此清词；唯一命中自动飞点的定时器也一并取消。 */
+function clearSearchWord(){
+  if(searchEl.value){ searchEl.value=''; }
+  if(_flyTimer){ clearTimeout(_flyTimer); _flyTimer=null; }
+}
+function setLevel(l){
+  level=l;
+  clearSearchWord();
+  const isCity=l==='city';
+  document.getElementById('subProv').textContent=region==='china'?'省份':'国家';
+  document.getElementById('subCity').textContent='城市';
+  document.getElementById('subProv').classList.toggle('on',!isCity);
+  document.getElementById('subCity').classList.toggle('on',isCity);
+  /* 世界国家层 194 个必须能搜；中国省份只有 34 个，不需要搜索框占位 */
+  document.getElementById('searchwrap').classList.toggle('show',isCity||region==='world');
+  asideH.textContent=region==='china'
+    ?(isCity?'中国 · 城市（按省份分组）':'中国 · 省份 / 地区')
+    :(isCity?'世界 · 城市（按国家分组）':'世界 · 国家（'+WORLD_COUNTRIES.length+'）');
+  searchEl.placeholder=region==='china'?'搜索城市或省份':'搜索国家 / 城市（支持英文）';
+  hintEl.textContent=isCity
+    ?(region==='china'?'勾选具体城市即点亮；城市所在省份会自动汇总点亮。搜索可按城市或省份名筛选。':'勾选具体城市即点亮；城市所在国家会自动汇总点亮。仅收录热门城市，未收录的可用「国家」层点亮。')
+    :(region==='world'?'按大洲分组；搜索支持中文名、英文名或两位国家码（如 jp）。勾选即点亮，小国标记重叠时搜索后会自动定位。':'勾选即点亮地图上的标记；点地图上的圆点也可切换。标记只保存在本机浏览器。');
+  renderAll();
+}
+function switchRegion(r){
+  region=r;
+  document.getElementById('tabChina').classList.toggle('on',r==='china');
+  document.getElementById('tabWorld').classList.toggle('on',r==='world');
+  document.getElementById('subtabs').style.display='flex';
+  if(!MAP_OK || !map){ setLevel(r==='world'?'country':'province'); return; }   /* M-1：引擎不可用时仍切换清单层级 */
+  /* 世界视图默认中心：国家补全到 194 个后，原 center(20,10) 在 1280px 下只能看到约 -60°~80°E，
+     东亚整片在视野外，用户第一眼找不到自己去过的亚洲国家。移到 (18,55) 可覆盖欧亚非三大洲。 */
+  if(r==='world'){map.setCenter(new TMap.LatLng(18,55));map.setZoom(3);setLevel('country');}
+  else{map.setCenter(new TMap.LatLng(35.5,104));map.setZoom(4);setLevel('province');}
+}
+document.getElementById('tabChina').addEventListener('click',()=>switchRegion('china'));
+document.getElementById('tabWorld').addEventListener('click',()=>switchRegion('world'));
+document.getElementById('subProv').addEventListener('click',()=>setLevel(region==='china'?'province':'country'));
+document.getElementById('subCity').addEventListener('click',()=>setLevel('city'));
+document.getElementById('clearBtn').addEventListener('click',async()=>{
+  if(!await askConfirm('清空当前视图的所有标记？'))return;
+  /* 2026-11-22 审查：清空必须同步删 litAt，否则时间线会继续报「点亮了 X」而地图已全灭。
+     数组里存裸 id，litAt 的键是带表前缀的 k（c:/cc:/w:/wc:），故按当前视图的表反查 k。 */
+  const dropLit=(bucketName,list)=>{ (state[bucketName]||[]).forEach(id=>{ const p=list.find(x=>x.id===id); if(p&&p.k) delete state.litAt[p.k]; }); };
+  if(isCityMode()){
+    dropLit(childBucket(),childList());
+    dropLit(parentBucket(),parentList());
+    state[childBucket()]=[];state[parentBucket()]=[];
+  }
+  else{
+    dropLit(parentBucket(),parentList());
+    state[parentBucket()]=[];
+  }
+  save();renderAll();
+});
+setLevel('province');
+
+/* ===== 日记弹窗交互 ===== */
+function resetForm(){
+  _diaryDirty=false;   /* P2：脏检查复位（打开弹窗/关闭弹窗/保存成功三条路径都经过这里） */
+  document.getElementById('dForm').reset();
+  document.getElementById('dEdit').value='';
+  pendingPhotos=[];existingPhotoIds=[];removedPhotoIds=[];editingMeta={};
+  pendingThumbJobs=[];  /* S-3：丢弃仍在生成缩略图的旧任务 */
+  renderPending();
+}
+function renderPending(){
+  let h='';
+  existingPhotoIds.forEach(pid=>{
+    h+='<div><img src="'+(photoThumbMap[pid]||'')+'" alt="已有照片"><button type="button" data-rmexist="'+pid+'" aria-label="移除已有照片">×</button></div>';
+  });
+  pendingPhotos.forEach(p=>{
+    h+='<div><img src="'+esc(p.thumb)+'" alt="'+esc(p.name)+'"><button type="button" data-rmphoto="'+p.id+'" aria-label="移除新照片">×</button></div>';
+  });
+  dThumbsEl.innerHTML=h;
+}
+function renderDiaryList(){
+  if(!curDiaries.length){dListEl.innerHTML='<div class="diary-empty">还没有日记，用下面的表单写下第一篇吧。</div>';return;}
+  dListEl.innerHTML=curDiaries.map(d=>{
+    const imgs=(d.photoIds||[]).map(pid=>photoThumbMap[pid]?'<img src="'+photoThumbMap[pid]+'" data-photo="'+pid+'" alt="日记照片">':'').join('');
+    return '<div class="dentry"><div class="eh"><b>'+esc(d.title||'无标题')+'</b><span>'+esc(d.date||'')+'</span><span class="sp"></span>'
+      +'<button type="button" class="dmini" data-edit="'+d.id+'">编辑</button>'
+      +'<button type="button" class="dmini" data-del="'+d.id+'">删除</button></div>'
+      +(d.text?'<p>'+esc(d.text)+'</p>':'')
+      +(imgs?'<div class="dphotos">'+imgs+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+function loadDiaries(){
+  return Promise.all([idbAll('diaries'),idbAll('photos')]).then(([ds,ps])=>{
+    photoThumbMap=Object.create(null);
+    ps.forEach(p=>{photoThumbMap[p.id]=p.thumb;});
+    diaryCounts=Object.create(null);
+    ds.forEach(d=>{diaryCounts[d.placeId]=(diaryCounts[d.placeId]||0)+1;});
+    curDiaries=ds.filter(d=>d.placeId===curPlace.id)
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||(b.createdAt||0)-(a.createdAt||0));
+    renderList();renderDiaryList();
+  }).catch(()=>{
+    dListEl.innerHTML='<div class="diary-empty">读取日记失败：当前环境可能不支持本地数据库，请通过工作台预览面板打开。</div>';
+  });
+}
+function openDiary(pid){
+  _diaryLastPid=pid;  /* S-1：loadDiaries() 会重建列表 DOM，保存 pid 以便关闭后重新查询按钮 */
+  _diaryLastFocus=document.activeElement;  /* S-1：记录触发元素，关闭后焦点归还 */
+  const p=findPlace(pid);
+  curPlace={id:pid,name:p?p.name:pid};
+  document.getElementById('dTitle').textContent='地点日记 · '+curPlace.name;
+  resetForm();
+  diaryMaskEl.classList.add('show');
+  document.body.style.overflow='hidden';  /* S-1：锁背景滚动 */
+  { const _d=new Date(); document.getElementById('dDate').value=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0'); }  /* 批三：toISOString().slice(0,10) 是 UTC 日期，东八区 0-8 点会默认成昨天 */
+  loadDiaries();
+  document.getElementById('dClose').focus();  /* S-1：焦点移入弹窗 */
+}
+function closeDiary(){  /* S-1：解锁滚动、焦点归还触发元素 */
+  diaryMaskEl.classList.remove('show');
+  document.body.style.overflow='';
+  resetForm();
+  const btn=_diaryLastPid?Array.prototype.find.call(document.querySelectorAll('[data-diary]'),x=>x.dataset.diary===_diaryLastPid):null;
+  if(btn&&typeof btn.focus==='function')btn.focus();
+  else if(_diaryLastFocus&&document.contains(_diaryLastFocus)&&typeof _diaryLastFocus.focus==='function')_diaryLastFocus.focus();
+  _diaryLastFocus=null;_diaryLastPid=null;
+}
+/* S-1：页面内轻量焦点陷阱。本弹窗为 .diary-mask，共享层选择器是 .mask，不通用，故不牵动共享门禁。 */
+function _diaryTrapFocus(e){
+  if(e.key!=='Tab'||!diaryMaskEl.classList.contains('show'))return;
+  const panel=diaryMaskEl.querySelector('.diary-panel');
+  if(!panel)return;
+  const f=Array.prototype.slice.call(panel.querySelectorAll('button:not([disabled]),input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled]),a[href]'));
+  if(!f.length)return;
+  const first=f[0],last=f[f.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  else if(!panel.contains(document.activeElement)){e.preventDefault();first.focus();}
+}
+function fillForm(id){
+  const d=curDiaries.find(x=>x.id===id);if(!d)return;
+  document.getElementById('dEdit').value=d.id;
+  document.getElementById('dDate').value=d.date||'';
+  document.getElementById('dTitleIn').value=d.title||'';
+  document.getElementById('dText').value=d.text||'';
+  existingPhotoIds=(d.photoIds||[]).slice();
+  pendingPhotos=[];pendingThumbJobs=[];  /* S-2/S-3：填另一篇日记时清空待传照片与未完成缩略图，防串档漏图 */
+  removedPhotoIds=[];editingMeta={createdAt:d.createdAt};
+  _diaryDirty=false;   /* P2：切换编辑对象，以已保存内容为新基准 */
+  renderPending();
+  document.getElementById('dTitleIn').focus();
+}
+async function deleteDiary(id){
+  if(!await askConfirm('删除这篇日记？其中的照片也会一起删除。'))return Promise.resolve();
+  return idbGet('diaries',id).then(d=>{
+    if(!d)return Promise.resolve();
+    const del=(d.photoIds||[]).map(pid=>idbDel('photos',pid));
+    del.push(idbDel('diaries',id));
+    return Promise.all(del);
+  }).then(()=>{resetForm();return loadDiaries();});
+}
+function makeThumb(file){
+  return new Promise(res=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const max=200,scale=Math.min(1,max/Math.max(img.width,img.height)||1);
+          const c=document.createElement('canvas');
+          c.width=Math.max(1,Math.round(img.width*scale));
+          c.height=Math.max(1,Math.round(img.height*scale));
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          res(c.toDataURL('image/jpeg',0.72));
+        }catch(e){res('');}
+      };
+      img.onerror=()=>res('');
+      img.src=fr.result;
+    };
+    fr.onerror=()=>res('');
+    fr.readAsDataURL(file);
+  });
+}
+function viewPhoto(pid){
+  idbGet('photos',pid).then(p=>{
+    if(!p||!p.blob)return;
+    const url=URL.createObjectURL(p.blob);
+    let ov=document.getElementById('photoView');
+    if(!ov){
+      ov=document.createElement('div');ov.id='photoView';
+      ov.style.cssText='display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+      ov.innerHTML='<img style="max-width:100%;max-height:100%;object-fit:contain">';
+      ov.addEventListener('click',()=>{ov.style.display='none';});
+      document.body.appendChild(ov);
+    }
+    const im=ov.querySelector('img');
+    if(im._url)URL.revokeObjectURL(im._url);
+    im.src=url;im._url=url;
+    ov.style.display='flex';
+  });
+}
+function toast(msg){
+  let t=document.getElementById('dToast');
+  if(!t){
+    t=document.createElement('div');t.id='dToast';
+    t.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none';  /* 批三：color:#fff 在深色主题压浅字底 1.9:1，改取 --bg 自动反转 */
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';},1800);
+}
+
+/* ===== P2：页内确认弹窗（替代 window.confirm——受限 iframe 下原生 confirm 可能静默返回 false，表现为「点了没反应」）===== */
+const askMaskEl=document.getElementById('askMask');
+let _askResolve=null;
+function _askClose(v){
+  askMaskEl.classList.remove('show');
+  const r=_askResolve;_askResolve=null;
+  if(r)r(v);
+}
+function askConfirm(msg){
+  if(_askResolve)_askClose(false);
+  document.getElementById('askBody').textContent=msg;
+  askMaskEl.classList.add('show');
+  setTimeout(()=>{document.getElementById('askOk').focus();},0);
+  return new Promise(res=>{_askResolve=res;});
+}
+document.getElementById('askOk').addEventListener('click',()=>_askClose(true));
+document.getElementById('askCancel').addEventListener('click',()=>_askClose(false));
+askMaskEl.addEventListener('click',e=>{if(e.target===askMaskEl)_askClose(false);});
+
+/* ===== P2：日记脏检查——几百字长文+已选照片被一次误触（遮罩/Esc/取消）全清，太伤 =====
+   dirty 只由用户输入置位（表单 input/change 冒泡 + 缩略图区删照点击），
+   resetForm（打开/关闭/保存成功）与 fillForm（切换编辑对象）复位。 */
+let _diaryDirty=false;
+async function requestCloseDiary(){
+  if(_diaryDirty && !(await askConfirm('日记内容尚未保存，确定丢弃吗？')))return;
+  closeDiary();
+}
+document.getElementById('dForm').addEventListener('input',()=>{_diaryDirty=true;});
+document.getElementById('dForm').addEventListener('change',()=>{_diaryDirty=true;});
+dThumbsEl.addEventListener('click',e=>{ if(e.target.closest('[data-rmphoto],[data-rmexist]'))_diaryDirty=true; });
+document.getElementById('dClose').addEventListener('click',()=>requestCloseDiary());
+document.getElementById('dCancel').addEventListener('click',()=>requestCloseDiary());
+diaryMaskEl.addEventListener('click',e=>{if(e.target===diaryMaskEl)requestCloseDiary();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){_diaryTrapFocus(e);return;}   /* S-1：Tab 在弹窗内回环 */
+  if(e.key==='Escape'&&askMaskEl.classList.contains('show')){_askClose(false);return;}   /* P2：ask 弹窗压在日记弹窗上层，先关它 */
+  if(e.key==='Escape'&&diaryMaskEl.classList.contains('show'))requestCloseDiary();
+});
+dListEl.addEventListener('click',e=>{
+  const ed=e.target.closest('[data-edit]');if(ed){fillForm(ed.dataset.edit);return;}
+  const dl=e.target.closest('[data-del]');if(dl){deleteDiary(dl.dataset.del);return;}
+  const ph=e.target.closest('[data-photo]');if(ph){viewPhoto(ph.dataset.photo);}
+});
+dThumbsEl.addEventListener('click',e=>{
+  const rp=e.target.closest('[data-rmphoto]');
+  if(rp){pendingPhotos=pendingPhotos.filter(p=>p.id!==rp.dataset.rmphoto);renderPending();return;}
+  const re=e.target.closest('[data-rmexist]');
+  if(re){const pid=re.dataset.rmexist;removedPhotoIds.push(pid);existingPhotoIds=existingPhotoIds.filter(x=>x!==pid);renderPending();}
+});
+dFileEl.addEventListener('change',()=>{
+  const files=Array.from(dFileEl.files||[]).filter(f=>/^image\//.test(f.type));
+  files.forEach(f=>{
+    if(f.size>MAX_PHOTO){toast('「'+(f.name||'照片')+'」超过 12MB，已跳过，请压缩后再传');return;}  /* S-5 */
+    const pid=uid('ph');
+    const job=makeThumb(f).then(thumb=>{  /* S-3：收集异步任务，submit 时统一等待 */
+      pendingPhotos.push({id:pid,blob:f,thumb,name:f.name,type:f.type,size:f.size});
+      renderPending();
+    });
+    pendingThumbJobs.push(job);
+  });
+  dFileEl.value='';
+});
+document.getElementById('dForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  if(saving)return;                 /* S-4：幂等锁，防双击/重复提交生成多篇日记 */
+  saving=true;
+  const editId=document.getElementById('dEdit').value||'';
+  const date=document.getElementById('dDate').value;
+  const title=document.getElementById('dTitleIn').value.trim();
+  const text=document.getElementById('dText').value.trim();
+  const did=editId||uid('d');
+  Promise.all(pendingThumbJobs).then(()=>{  /* S-3：等全部异步缩略图就绪，避免新照片漏存 */
+    const jobs=pendingPhotos.map(p=>idbPut('photos',{
+      id:p.id,diaryId:did,blob:p.blob,thumb:p.thumb,name:p.name,type:p.type,size:p.size,createdAt:Date.now()
+    }));
+    removedPhotoIds.forEach(pid=>jobs.push(idbDel('photos',pid)));
+    return Promise.all(jobs);
+  }).then(()=>{
+    return idbPut('diaries',{
+      id:did,placeId:curPlace.id,placeName:curPlace.name,region,level,
+      date,title,text,photoIds:existingPhotoIds.slice().concat(pendingPhotos.map(p=>p.id)),
+      createdAt:(editId&&editingMeta.createdAt)||Date.now(),updatedAt:Date.now()
+    });
+  }).then(()=>{resetForm();return loadDiaries();})
+    .then(()=>{toast('日记已保存');})
+    .catch(()=>{toast('保存失败，请检查浏览器本地存储权限');})
+    .finally(()=>{saving=false;});  /* S-4：无论成功失败都释放锁 */
+});
+/* 首次刷新前先把旧格式 placeId（裸 id）迁移到命名空间键，否则日记计数与列表会读不到旧数据 */
+migrateDiaryKeys().then(refreshCounts).catch(refreshCounts);
+</script>
+<script>
+/* >>> SITE-NAV:BEGIN —— 由 _shared/site-nav.js 自动生成，请勿直接编辑本块 */
+/* ============================================================
+   SITE-NAV v2（2026-11-04）— 站点导航条的「行为层」
+   ------------------------------------------------------------
+   唯一真相源：_shared/site-nav.js，由 inject_shared.py 内联进七页。
+   导航条本体（HTML + CSS）已改为静态块 _shared/site-nav-static.html，
+   放在 <body> 开头随文档解析立即呈现，消除 v1 的首屏闪烁：
+   v1 在 DOMContentLoaded 才 createElement 插入，任务台 FCP 1220ms /
+   DCL 1555ms，中间约 335ms 显示的是没有导航条的旧版布局。
+   本文件只负责：当前页高亮 + 站点级 PWA 注册。幂等、零外部依赖。
+   - 非吸顶：不与各页 sticky 顶栏抢 top:0
+   - 颜色全部取页面自身 CSS 变量，跟随亮/暗主题
+   - 同标签跳转（静态链接无 target="_blank"）
+   ============================================================ */
+(function(){
+  if (typeof document === "undefined") return;
+
+  function currentPage(){
+    var f = "";
+    try { f = decodeURIComponent((location.pathname.split("/").pop() || "index.html")).toLowerCase(); } catch(e){ f = "index.html"; }
+    if (!f || f === "index.html") return "tasks";        /* 根入口仍是任务台副本 */
+    if (f.indexOf("home") >= 0) return "home";
+    if (f.indexOf("任务管理台") >= 0 || f.indexOf("taskhub") >= 0) return "tasks";
+    if (f.indexOf("明信片") >= 0 || f.indexOf("postcard") >= 0) return "postcards";
+    if (f.indexOf("书影音海报墙") >= 0 || f.indexOf("media") >= 0) return "media";
+    if (f.indexOf("观剧") >= 0 || f.indexOf("theatre") >= 0) return "theatre";
+    if (f.indexOf("旅行地图") >= 0 || f.indexOf("map") >= 0) return "map";
+    if (f.indexOf("随笔") >= 0 || f.indexOf("notes") >= 0) return "notes";
+    if (f.indexOf("作品集") >= 0 || f.indexOf("portfolio") >= 0) return "portfolio";
+    if (f.indexOf("时间线") >= 0 || f.indexOf("timeline") >= 0) return "timeline";
+    return "";
+  }
+
+  /* 站点级 PWA：七页共用同一个 sw.js，重复 register 天然幂等；file:// 双击时静默跳过 */
+  function registerSW(){
+    try{
+      if(!("serviceWorker" in navigator)) return;
+      if(location.protocol!=="https:" && location.protocol!=="http:") return;
+      /* 批三：updateViaCache:"none" —— SW 脚本自身也走 max-age=600，
+         默认策略下浏览器可能从 HTTP 缓存拿旧 sw.js，更新检查失效拖 24h。 */
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(function(){});
+    }catch(e){}
+  }
+
+  function init(){
+    var bar = document.getElementById("__wsn_bar");
+    if (!bar || bar.getAttribute("data-wsn-ready") === "1") return;
+    var cur = currentPage();
+    var a = cur ? bar.querySelector('.__wsn_links a[data-page="' + cur + '"]') : null;
+    if (a){ a.className = "__wsn_on"; a.setAttribute("aria-current", "page"); }
+    bar.setAttribute("data-wsn-ready", "1");
+    registerSW();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+/* <<< SITE-NAV:END */
+</script>
+</body>
+</html>
