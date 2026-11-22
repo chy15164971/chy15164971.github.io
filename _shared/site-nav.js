@@ -103,3 +103,185 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wbThemeInit);
   else wbThemeInit();
 })();
+
+/* ============================================================
+   页面设置（2026-11-23）—— 导航显隐 / 自定义入口 / 排序
+   ------------------------------------------------------------
+   唯一真相源：_shared/site-nav.js，由 inject_shared.py 注入十页。
+   设置只存本机 localStorage(wb_nav_pages_v1)，不碰任何业务数据键；
+   隐藏只收起导航链接与首页对应卡片，页面本身和数据完整保留。
+   PWA 长按快捷方式是 manifest.json 静态清单，无法按本机设置动态隐藏。
+   ============================================================ */
+(function(){
+  var KEY = "wb_nav_pages_v1";
+  var BUILTIN = [
+    ["home","首页"],["tasks","任务台"],["postcards","明信片"],["media","海报墙"],
+    ["theatre","观剧"],["map","地图"],["notes","随笔"],["portfolio","作品集"],["timeline","时间线"]
+  ];
+  var CARD = {tasks:"cardTasks",postcards:"cardPostcards",media:"cardMedia",theatre:"cardTheatre",
+              map:"cardMap",notes:"cardNotes",portfolio:"cardPortfolio",timeline:"cardTimeline"};
+  var state = null, panel = null, btn = null, resetArmed = 0, resetTimer = null;
+
+  function nameOf(id){ for(var i=0;i<BUILTIN.length;i++) if(BUILTIN[i][0]===id) return BUILTIN[i][1]; return ""; }
+  function trim(s){ return (s||"").replace(/^\s+|\s+$/g,""); }
+  function safeUrl(u){
+    if(typeof u !== "string") return false;
+    u = trim(u);
+    if(!u || /[\s<>"']/.test(u)) return false;
+    return /^(https?:\/\/|\.\/|\/)/i.test(u) || /^[\w\u4e00-\u9fa5.\/-]+\.html$/i.test(u);
+  }
+  function load(){
+    var d = {hidden:{},custom:[],order:[]}, o = null;
+    try{ o = JSON.parse(localStorage.getItem(KEY) || "null"); }catch(e){}
+    if(o && typeof o === "object"){
+      if(o.hidden && typeof o.hidden === "object") d.hidden = o.hidden;
+      if(Array.isArray(o.custom)) for(var i=0;i<o.custom.length && d.custom.length<20;i++){
+        var c = o.custom[i];
+        if(c && typeof c.id === "string" && /^c_/.test(c.id) && typeof c.name === "string" && c.name && safeUrl(c.url))
+          d.custom.push({id:c.id, name:c.name.slice(0,12), url:trim(c.url)});
+      }
+      if(Array.isArray(o.order)) d.order = o.order.slice(0,60);
+    }
+    var all = BUILTIN.map(function(b){ return b[0]; }).concat(d.custom.map(function(c){ return c.id; }));
+    var seen = {}, ord = [];
+    for(var j=0;j<d.order.length;j++){
+      var id = d.order[j];
+      if(!seen[id] && all.indexOf(id) >= 0){ seen[id] = 1; ord.push(id); }
+    }
+    for(var k=0;k<all.length;k++) if(!seen[all[k]]){ seen[all[k]] = 1; ord.push(all[k]); }
+    d.order = ord;
+    return d;
+  }
+  /* 写入口用字面量键：明信片 P2-15 白名单守卫要求业务写键显式可审计（变量键会被判可疑） */
+  function save(){ try{ localStorage.setItem("wb_nav_pages_v1", JSON.stringify(state)); }catch(e){} }
+  function apply(){
+    var bar = document.getElementById("__wsn_bar");
+    var links = bar && bar.querySelector(".__wsn_links");
+    if(!links) return;
+    var olds = links.querySelectorAll ? links.querySelectorAll("a[data-wbnav-custom]") : [];
+    for(var i=olds.length-1;i>=0;i--) olds[i].parentNode.removeChild(olds[i]);
+    for(var j=0;j<BUILTIN.length;j++){
+      var a = links.querySelector('a[data-page="'+BUILTIN[j][0]+'"]');
+      if(a) a.hidden = !!state.hidden[BUILTIN[j][0]];
+    }
+    state.custom.forEach(function(c){
+      var a = document.createElement("a");
+      a.setAttribute("data-wbnav-custom", c.id);
+      a.setAttribute("href", c.url);
+      a.setAttribute("title", c.url);
+      if(/^https?:/i.test(c.url)){ a.target = "_blank"; a.rel = "noopener noreferrer"; }
+      a.textContent = c.name;
+      links.appendChild(a);
+    });
+    state.order.forEach(function(id){
+      var el = links.querySelector('a[data-page="'+id+'"]') || links.querySelector('a[data-wbnav-custom="'+id+'"]');
+      if(el && links.appendChild) links.appendChild(el);
+    });
+    var p = "";
+    try{ p = location.pathname || ""; }catch(e){}   /* DOM 桩无 location 时静默跳过首页卡片联动 */
+    if(p === "/" || p === "" || /(^|\/)(home|index)\.html$/i.test(p)){
+      Object.keys(CARD).forEach(function(id){
+        var c = document.getElementById(CARD[id]);
+        if(c) c.hidden = !!state.hidden[id];
+      });
+    }
+  }
+  function mk(tag, cls, txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
+  function mini(txt, title, fn, disabled){
+    var b = mk("button", "", txt);
+    b.type="button"; b.title=title; b.setAttribute("aria-label",title);
+    if(disabled) b.disabled=true; else b.addEventListener("click",fn);
+    return b;
+  }
+  function err(msg){ var e=document.getElementById("__wsnErr"); if(e) e.textContent = msg || ""; }
+  function move(idx,dir){
+    var j = idx + dir;
+    if(j<0 || j>=state.order.length) return;
+    var t=state.order[idx]; state.order[idx]=state.order[j]; state.order[j]=t;
+    save(); apply(); render();
+  }
+  function render(){
+    var box = document.getElementById("__wsnRows");
+    if(!box) return;
+    while(box.firstChild) box.removeChild(box.firstChild);
+    state.order.forEach(function(id, idx){
+      var row = mk("div","__wsn_row"), nm = nameOf(id);
+      if(nm){
+        var cb = document.createElement("input");
+        cb.type="checkbox"; cb.checked = !state.hidden[id]; cb.id="__wsnCb_"+id;
+        cb.setAttribute("aria-label","显示"+nm);
+        cb.addEventListener("change",function(){ state.hidden[id]=!cb.checked; save(); apply(); });
+        row.appendChild(cb);
+        var lb = mk("label","nm",nm); lb.setAttribute("for",cb.id); row.appendChild(lb);
+      }else{
+        var c = null;
+        for(var i=0;i<state.custom.length;i++) if(state.custom[i].id===id) c=state.custom[i];
+        if(!c) return;
+        var t = mk("span","nm",c.name); t.title=c.url; row.appendChild(t);
+        var u = mk("span","u",c.url.replace(/^https?:\/\//i,"").slice(0,22)); u.title=c.url; row.appendChild(u);
+        row.appendChild(mini("×","删除自定义入口 "+c.name,function(){
+          state.custom = state.custom.filter(function(x){ return x.id!==id; });
+          state.order = state.order.filter(function(x){ return x!==id; });
+          save(); apply(); render(); err("已删除自定义入口");
+        }));
+      }
+      row.appendChild(mini("↑","上移",function(){ move(idx,-1); }, idx===0));
+      row.appendChild(mini("↓","下移",function(){ move(idx,1); }, idx===state.order.length-1));
+      box.appendChild(row);
+    });
+  }
+  function close(){
+    if(!panel) return;
+    panel.hidden = true;
+    if(btn) btn.setAttribute("aria-expanded","false");
+  }
+  function open(){
+    if(!panel) return;
+    state = load(); render(); err("");
+    panel.hidden = false;
+    if(btn) btn.setAttribute("aria-expanded","true");
+    var f = panel.querySelector("input,button");
+    if(f && f.focus) f.focus();
+  }
+  function init(){
+    btn = document.getElementById("__wsnSetBtn");
+    panel = document.getElementById("__wsnPanel");
+    if(!btn || !panel || btn.getAttribute("data-wbnav-ready")==="1") return;
+    btn.setAttribute("data-wbnav-ready","1");
+    state = load(); apply();
+    btn.addEventListener("click",function(){ panel.hidden ? open() : close(); });
+    var x = document.getElementById("__wsnSetClose"); if(x) x.addEventListener("click",close);
+    document.addEventListener("keydown",function(e){ if(e.key==="Escape" && !panel.hidden) close(); });
+    document.addEventListener("click",function(e){
+      if(panel.hidden) return;
+      if((panel.contains && panel.contains(e.target)) || (btn.contains && btn.contains(e.target))) return;
+      close();
+    });
+    var add = document.getElementById("__wsnAdd");
+    if(add) add.addEventListener("click",function(){
+      var ni=document.getElementById("__wsnNewName"), ui=document.getElementById("__wsnNewUrl");
+      var n=trim(ni.value), u=trim(ui.value);
+      if(!n){ err("请先填写名称"); ni.focus(); return; }
+      if(!safeUrl(u)){ err("网址需以 https:// 开头，或填写站内 .html 页面"); ui.focus(); return; }
+      if(state.custom.length>=20){ err("自定义入口最多 20 个"); return; }
+      var id = "c_"+Date.now().toString(36)+Math.floor(Math.random()*1000).toString(36);
+      state.custom.push({id:id,name:n.slice(0,12),url:u});
+      state.order.push(id);
+      ni.value=""; ui.value=""; err("已添加"); save(); apply(); render();
+    });
+    var rb = document.getElementById("__wsnReset");
+    if(rb) rb.addEventListener("click",function(){
+      if(resetTimer){ clearTimeout(resetTimer); resetTimer=null; }
+      if(!resetArmed){
+        resetArmed=1; rb.textContent="再次点击确认";
+        resetTimer=setTimeout(function(){ resetArmed=0; rb.textContent="恢复默认"; resetTimer=null; },3500);
+        return;
+      }
+      resetArmed=0; rb.textContent="恢复默认";
+      try{ localStorage.removeItem(KEY); }catch(e){}
+      state=load(); save(); apply(); render(); err("已恢复默认");
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

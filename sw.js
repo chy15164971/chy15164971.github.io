@@ -19,7 +19,9 @@ const SENT_CACHE="wb-remind-sent";
    多页 HTML/manifest 字节变化，按既定约定升版本强制重新预缓存。 */
 /* v43（2026-11-22 作品集删除撤销）：作品集.html 删除确认补「8 秒内可撤销」+ toast 内嵌撤销按钮，
    撤销时原位恢复条目并移除 builtin 墓碑。单页 HTML 字节变化，按既定约定升版本强制重新预缓存。 */
-const APP_CACHE="wb-app-v43";
+/* v44（2026-11-23 页面设置）：导航条齿轮弹层支持页面显隐/自定义入口/排序，十页共享块重写，
+   首页卡片随设置隐藏；APP_CACHE 升版强制重新预缓存。 */
+const APP_CACHE="wb-app-v44";
 /* v32（2026-11-22 P2 打磨）：八页 HTML / timeline-core 字节变化。
    SW 级（全站审查 P2）：① 预缓存失败不再 console.warn 后照常 activate——改为 throw 让
    install 失败，浏览器会按生命周期自动重试；否则弱网下某页预缓存失败即永久缺页，

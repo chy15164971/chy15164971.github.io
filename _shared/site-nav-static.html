@@ -24,9 +24,43 @@
 .__wsn_links a.__wsn_on{color:#fff;background:var(--pri-deep,#3D68F0);border-color:var(--pri-deep,#3D68F0)}
 .__wsn_hint{font-size:12px;color:var(--sub,#9aa3b2);white-space:nowrap}
 .__wsn_bar a:focus-visible{outline:2px solid var(--pri,#4F7CFF);outline-offset:2px}
+/* 页面设置（2026-11-23）：齿轮 + 弹层。隐藏只收起入口，不删除任何页面数据。 */
+.__wsn_links a[hidden]{display:none}
+.__wsn_set{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;padding:0;
+  border:1px solid var(--line,#e7ebf2);border-radius:9px;background:transparent;color:var(--sub,#6b7280);cursor:pointer}
+.__wsn_set svg{width:15px;height:15px;display:block}
+.__wsn_set:hover{background:var(--hover,var(--pri-soft,#eaf0ff));color:var(--ink,#1f2430)}
+.__wsn_set[aria-expanded="true"]{background:var(--pri-deep,#3D68F0);border-color:var(--pri-deep,#3D68F0);color:#fff}
+.__wsn_panel{position:fixed;top:52px;right:14px;width:min(344px,calc(100vw - 24px));box-sizing:border-box;z-index:9000;
+  background:var(--card,#fff);color:var(--ink,#1f2430);border:1px solid var(--line,#e7ebf2);border-radius:14px;
+  box-shadow:0 12px 36px rgba(20,28,50,.18);padding:14px 16px;font-size:13px;line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.__wsn_panel[hidden]{display:none}
+.__wsn_ph{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+.__wsn_ph button,.__wsn_pf button,.__wsn_add button,.__wsn_row button{cursor:pointer;font:inherit;
+  border:1px solid var(--line,#e7ebf2);border-radius:7px;background:var(--hover,rgba(127,140,170,.08));color:var(--ink,#1f2430)}
+.__wsn_ph button{width:26px;height:26px;line-height:1;padding:0;font-size:16px}
+.__wsn_pt{margin:6px 0 2px;font-size:11.5px;color:var(--sub,#6b7280);line-height:1.6}
+.__wsn_rows{display:flex;flex-direction:column;gap:3px;max-height:252px;overflow:auto;margin:9px 0 2px}
+.__wsn_row{display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:8px;background:var(--hover,rgba(127,140,170,.08))}
+.__wsn_row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.__wsn_row .u{font-size:11px;color:var(--sub,#6b7280);max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.__wsn_row input[type=checkbox]{width:15px;height:15px;flex:none;margin:0;accent-color:var(--pri,#4F7CFF)}
+.__wsn_row button{width:23px;height:23px;line-height:1;padding:0;font-size:12px;flex:none}
+.__wsn_row button:disabled{opacity:.32;cursor:default}
+.__wsn_add{display:flex;gap:5px;margin-top:9px}
+.__wsn_add input{min-width:0;flex:1;padding:5px 7px;border:1px solid var(--line,#e7ebf2);border-radius:7px;
+  background:var(--bg,#f5f7fb);color:var(--ink,#1f2430);font:inherit;font-size:12px}
+.__wsn_add input:first-child{flex:0 0 72px}
+.__wsn_add button,.__wsn_pf button{padding:5px 10px;font-size:12px}
+.__wsn_err{font-size:11px;color:#c0392b;min-height:15px;margin-top:3px}
+.__wsn_pf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;
+  padding-top:9px;border-top:1px solid var(--line,#e7ebf2);font-size:11px;color:var(--sub,#6b7280)}
+.__wsn_panel button:focus-visible,.__wsn_panel input:focus-visible{outline:2px solid var(--pri,#4F7CFF);outline-offset:1px}
 @media(max-width:680px){.__wsn_bar{gap:9px;padding:6px 10px}.__wsn_hint{display:none}
   .__wsn_brand{min-height:44px}
-  .__wsn_links a{padding:3px 9px;font-size:12px;min-height:44px}}
+  .__wsn_links a{padding:3px 9px;font-size:12px;min-height:44px}
+  .__wsn_panel{top:48px;right:8px;left:8px;width:auto}}
 @media(prefers-reduced-motion:reduce){.__wsn_links a{transition:none}}
 </style>
 <nav id="__wsn_bar" class="__wsn_bar" aria-label="站点导航">
@@ -42,5 +76,18 @@
     <a href="作品集.html" data-page="portfolio">作品集</a>
     <a href="时间线.html" data-page="timeline">时间线</a>
   </div>
+  <button class="__wsn_set" id="__wsnSetBtn" type="button" aria-label="页面设置" aria-expanded="false" aria-controls="__wsnPanel" title="页面设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.63h.01A1.7 1.7 0 0 0 10.04 3.07V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.37 9v.01A1.7 1.7 0 0 0 20.93 10.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg></button>
   <span class="__wsn_hint">同一工作台 · 数据保存在本机</span>
 </nav>
+<div class="__wsn_panel" id="__wsnPanel" role="dialog" aria-label="页面设置" hidden>
+  <div class="__wsn_ph"><b>页面设置</b><button type="button" id="__wsnSetClose" aria-label="关闭页面设置">×</button></div>
+  <p class="__wsn_pt">勾选要在导航显示的页面；隐藏只收起入口，不会删除页面里的数据。</p>
+  <div class="__wsn_rows" id="__wsnRows"></div>
+  <div class="__wsn_add">
+    <input id="__wsnNewName" type="text" maxlength="12" placeholder="名称" aria-label="自定义页面名称">
+    <input id="__wsnNewUrl" type="text" placeholder="网址 https://…" aria-label="自定义页面网址">
+    <button type="button" id="__wsnAdd">添加</button>
+  </div>
+  <div class="__wsn_err" id="__wsnErr" role="status" aria-live="polite"></div>
+  <div class="__wsn_pf"><button type="button" id="__wsnReset">恢复默认</button><span>仅保存在本机浏览器</span></div>
+</div>
