@@ -17,7 +17,9 @@ const SENT_CACHE="wb-remind-sent";
    manifest shortcuts +2；② 契约——index.html 由任务台副本改为 home.html 副本（根域名入口=门户），
    index 不再注入 SHARED/MODAL-A11Y；③ 任务台 media 视图与海报墙互加流转引导文案。
    多页 HTML/manifest 字节变化，按既定约定升版本强制重新预缓存。 */
-const APP_CACHE="wb-app-v42";
+/* v43（2026-11-22 作品集删除撤销）：作品集.html 删除确认补「8 秒内可撤销」+ toast 内嵌撤销按钮，
+   撤销时原位恢复条目并移除 builtin 墓碑。单页 HTML 字节变化，按既定约定升版本强制重新预缓存。 */
+const APP_CACHE="wb-app-v43";
 /* v32（2026-11-22 P2 打磨）：八页 HTML / timeline-core 字节变化。
    SW 级（全站审查 P2）：① 预缓存失败不再 console.warn 后照常 activate——改为 throw 让
    install 失败，浏览器会按生命周期自动重试；否则弱网下某页预缓存失败即永久缺页，

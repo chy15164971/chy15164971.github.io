@@ -153,8 +153,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
        background:var(--ink);color:var(--bg);font-size:13px;padding:9px 16px;border-radius:999px;opacity:0;
        transition:opacity .2s ease,transform .2s ease;pointer-events:none;z-index:90;max-width:86vw}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-@media(prefers-reduced-motion:reduce){.pf-item,.toast,.btn,.chip{transition:none}.pf-item:hover{transform:none}}
+ .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+ .toast.with-act{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:9px 12px 9px 16px}
+ .toast .t-undo{border:none;background:rgba(255,255,255,.22);color:var(--bg);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:8px;white-space:nowrap}
+ .toast .t-undo:hover{background:rgba(255,255,255,.36)}
+ @media(max-width:560px){.toast .t-undo{min-height:44px}}
+ @media(prefers-reduced-motion:reduce){.pf-item,.toast,.btn,.chip{transition:none}.pf-item:hover{transform:none}}
 </style>
 </head>
 <body>
@@ -445,8 +449,23 @@ function mergeSeed(s){
 function saveSt(){ st.ts=Date.now(); try{ localStorage.setItem(KEY,JSON.stringify(st)); }catch(e){ toast("保存失败：本地存储空间不足"); return false; } return true; }
 function saveOv(){ return saveSt(); }   /* 兼容内部既有调用名 */
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
-function toast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
-  clearTimeout(toast._h); toast._h=setTimeout(function(){ t.classList.remove("show"); },2200); }
+ function toast(msg, undoFn){
+   var t=document.getElementById("toast");
+   clearTimeout(toast._h);
+   t.textContent=""; t.classList.remove("with-act");
+   if(undoFn){
+     var span=document.createElement("span"); span.textContent=msg; t.appendChild(span);
+     var b=document.createElement("button"); b.type="button"; b.className="t-undo"; b.textContent="撤销";
+     b.setAttribute("aria-label","撤销删除："+msg);
+     b.addEventListener("click",function(){ t.classList.remove("show"); t.classList.remove("with-act"); undoFn(); });
+     t.appendChild(b);
+     t.classList.add("with-act"); t.classList.add("show");
+     toast._h=setTimeout(function(){ t.classList.remove("show"); t.classList.remove("with-act"); },8000);
+   }else{
+     t.textContent=msg; t.classList.add("show");
+     toast._h=setTimeout(function(){ t.classList.remove("show"); },2200);
+   }
+ }
 
 function allItems(){
   var del=st.del||[];
@@ -599,16 +618,25 @@ document.getElementById("lbClose").addEventListener("click",closeLb);
 document.getElementById("lbPrev").addEventListener("click",function(){ step(-1); });
 document.getElementById("lbNext").addEventListener("click",function(){ step(1); });
 document.getElementById("lbEdit").addEventListener("click",function(){ if(lbIdx>=0) openForm(view[lbIdx]); });
-document.getElementById("lbDel").addEventListener("click",function(){
-  if(lbIdx<0) return;
-  var it=view[lbIdx];
-  askConfirm("删除作品","删除「"+it.title+"」？仅移除条目，图片文件仍保留在 assets 目录。").then(function(ok){
-    if(!ok) return;
-    if(it.builtin){ st.del.push(it.id); }
-    st.items=st.items.filter(function(x){ return x.id!==it.id; });
-    saveOv(); closeLb(); refresh(); toast("已删除");
-  });
-});
+ document.getElementById("lbDel").addEventListener("click",function(){
+   if(lbIdx<0) return;
+   var it=view[lbIdx];
+   askConfirm("删除作品","删除「"+it.title+"」？仅移除条目，图片文件仍保留在 assets 目录，删除后 8 秒内可撤销。").then(function(ok){
+     if(!ok) return;
+     var wasBuiltin=!!it.builtin;
+     var origIdx=st.items.findIndex(function(x){ return x.id===it.id; });
+     if(wasBuiltin && st.del.indexOf(it.id)<0){ st.del.push(it.id); }
+     st.items=st.items.filter(function(x){ return x.id!==it.id; });
+     var saved=saveOv(); closeLb(); refresh();
+     if(saved) toast("已删除「"+it.title+"」",function(){
+       /* 原位恢复：撤销 builtin 墓碑 + 按原索引插回 items（内置件靠墓碑防复活，撤销须同步移除） */
+       if(wasBuiltin){ st.del=st.del.filter(function(id){ return id!==it.id; }); }
+       if(origIdx<0 || origIdx>st.items.length) origIdx=st.items.length;
+       st.items.splice(origIdx,0,it);
+       saveOv(); refresh(); toast("已撤销删除「"+it.title+"」");
+     }); else toast("已删除");
+   });
+ });
 document.getElementById("fCancel").addEventListener("click",closeForm);
 document.getElementById("fSave").addEventListener("click",saveForm);
 document.getElementById("askOk").addEventListener("click",function(){ settle(true); });
