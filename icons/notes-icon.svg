@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="随笔图标">
+  <defs>
+    <linearGradient id="ntG" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1BA5B9"/>
+      <stop offset="1" stop-color="#0B6E7C"/>
+    </linearGradient>
+    <radialGradient id="ntH" cx="180" cy="120" r="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- 青色对角渐变底（与首页「随笔」卡片同源色） -->
+  <rect width="1024" height="1024" rx="208" fill="url(#ntG)"/>
+  <!-- 左上柔光 -->
+  <rect width="1024" height="1024" rx="208" fill="url(#ntH)"/>
+  <!-- 白色圆角描边 -->
+  <rect x="62" y="62" width="900" height="900" rx="208" fill="none" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="12"/>
+  <!-- 纸页（右上折角） -->
+  <path d="M 632 212 H 388 a 48 48 0 0 0 -48 48 V 764 a 48 48 0 0 0 48 48 H 704 a 48 48 0 0 0 48 -48 V 332 Z" fill="#FFFFFF"/>
+  <path d="M 632 212 V 332 H 752 Z" fill="#CFE7EA"/>
+  <!-- 行线（青芯 #0D7A8A） -->
+  <g fill="#0D7A8A">
+    <rect x="352" y="470" width="320" height="34" rx="17"/>
+    <rect x="352" y="545" width="300" height="34" rx="17"/>
+    <rect x="352" y="620" width="330" height="34" rx="17"/>
+    <rect x="352" y="695" width="220" height="34" rx="17"/>
+  </g>
+</svg>

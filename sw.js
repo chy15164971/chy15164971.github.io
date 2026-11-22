@@ -17,7 +17,7 @@ const SENT_CACHE="wb-remind-sent";
    manifest shortcuts +2；② 契约——index.html 由任务台副本改为 home.html 副本（根域名入口=门户），
    index 不再注入 SHARED/MODAL-A11Y；③ 任务台 media 视图与海报墙互加流转引导文案。
    多页 HTML/manifest 字节变化，按既定约定升版本强制重新预缓存。 */
-const APP_CACHE="wb-app-v39";
+const APP_CACHE="wb-app-v40";
 /* v32（2026-11-22 P2 打磨）：八页 HTML / timeline-core 字节变化。
    SW 级（全站审查 P2）：① 预缓存失败不再 console.warn 后照常 activate——改为 throw 让
    install 失败，浏览器会按生命周期自动重试；否则弱网下某页预缓存失败即永久缺页，
@@ -76,6 +76,8 @@ const PRECACHE=["./", "./home.html", "./任务管理台.html", "./明信片追�
                 "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-512-maskable.png",
                 "./icons/favicon.ico", "./icons/workbench-icon.svg",
                 "./icons/timeline-icon.svg", "./icons/timeline-icon-180.png", "./icons/timeline-icon-192.png",
+                "./icons/notes-icon.svg", "./icons/notes-icon-180.png", "./icons/notes-icon-192.png",
+                "./icons/work-icon.svg", "./icons/work-icon-180.png", "./icons/work-icon-192.png",
                 "./随笔.html", "./作品集.html",
                 "./assets/portfolio/g01.png", "./assets/portfolio/g02.png", "./assets/portfolio/g03.png",
                 "./assets/portfolio/g04.png", "./assets/portfolio/g05.png", "./assets/portfolio/g06.png",

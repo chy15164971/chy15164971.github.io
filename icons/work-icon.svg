@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="作品集图标">
+  <defs>
+    <linearGradient id="wkG" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C4604F"/>
+      <stop offset="1" stop-color="#8F382E"/>
+    </linearGradient>
+    <radialGradient id="wkH" cx="180" cy="120" r="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="wkC">
+      <rect x="420" y="320" width="344" height="444" rx="24"/>
+    </clipPath>
+  </defs>
+  <!-- 陶土红对角渐变底（与首页「作品集」卡片同源色） -->
+  <rect width="1024" height="1024" rx="208" fill="url(#wkG)"/>
+  <!-- 左上柔光 -->
+  <rect width="1024" height="1024" rx="208" fill="url(#wkH)"/>
+  <!-- 白色圆角描边 -->
+  <rect x="62" y="62" width="900" height="900" rx="208" fill="none" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="12"/>
+  <!-- 背框（半透明白，叠放感） -->
+  <rect x="252" y="262" width="380" height="470" rx="48" fill="#FFFFFF" fill-opacity="0.55"/>
+  <!-- 前框 -->
+  <rect x="392" y="292" width="400" height="500" rx="48" fill="#FFFFFF"/>
+  <!-- 前框内画：山与日（陶土红芯 #A8483F） -->
+  <g clip-path="url(#wkC)">
+    <circle cx="680" cy="396" r="44" fill="#A8483F"/>
+    <polygon points="420,764 580,560 740,764" fill="#A8483F"/>
+    <polygon points="560,764 680,620 800,764" fill="#D2786E"/>
+  </g>
+</svg>
