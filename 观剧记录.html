@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="观剧记录：记录每一场走进剧场的现场演出，累积属于你的剧历">
     <title>观剧记录 · 工作台</title>
     <meta name="theme-color" content="#4F7CFF">
     <link rel="manifest" href="manifest.json">
@@ -218,6 +219,7 @@ main{max-width:1360px;margin:0 auto;padding:16px}   /* 20261122：1080→1360，
     <button class="btn" id="addWish" type="button">+ 想看</button>
     <button class="btn" id="btnExport" type="button" title="导出全部观演记录、想看与照片为 JSON 备份">导出备份</button>
     <button class="btn" id="btnImport" type="button" title="从导出的 JSON 备份恢复记录与照片">导入恢复</button>
+    <button class="btn" id="btnTheme" type="button" aria-pressed="false" aria-label="切换主题" title="切换主题"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg> 切换主题</button>
     <input type="file" id="importFile" accept="application/json,.json" style="display:none">
   </div>
   <div class="tabs" id="tabs">
@@ -684,7 +686,7 @@ view.addEventListener('click',async e=>{
     });
     return;
   }
-  const ph=e.target.closest('[data-photo]');if(ph){idbAll().then(ps=>{const p=ps.find(x=>x.id===ph.dataset.photo);if(!p||!p.blob)return;const url=URL.createObjectURL(p.blob);let ov=document.getElementById('pview');if(!ov){ov=document.createElement('div');ov.id='pview';ov.style.cssText='display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);align-items:center;justify-content:center;padding:20px;cursor:zoom-out';ov.innerHTML='<img style="max-width:100%;max-height:100%;object-fit:contain">';ov.addEventListener('click',()=>ov.style.display='none');document.body.appendChild(ov);}const im=ov.querySelector('img');if(im._u)URL.revokeObjectURL(im._u);im.src=url;im._u=url;ov.style.display='flex';});return;}
+  const ph=e.target.closest('[data-photo]');if(ph){idbAll().then(ps=>{const p=ps.find(x=>x.id===ph.dataset.photo);if(!p||!p.blob)return;const url=URL.createObjectURL(p.blob);let ov=document.getElementById('pview');if(!ov){ov=document.createElement('div');ov.id='pview';ov.style.cssText='display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);align-items:center;justify-content:center;padding:20px;cursor:zoom-out';ov.innerHTML='<img style="max-width:100%;max-height:100%;object-fit:contain" alt="现场照片放大预览">';ov.addEventListener('click',()=>ov.style.display='none');document.body.appendChild(ov);}const im=ov.querySelector('img');if(im._u)URL.revokeObjectURL(im._u);im.src=url;im._u=url;ov.style.display='flex';});return;}
   const wd=e.target.closest('[data-wdone]');if(wd){const w=data.wishlist.find(x=>x.id===wd.dataset.wdone);if(w){w.done=wd.checked;save();renderAll();}return;}
   const wl=e.target.closest('[data-wdel]');if(wl){  /* S-10：想看删除也提供撤销 */
     const id=wl.dataset.wdel;
@@ -852,6 +854,55 @@ renderAll();
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
+})();
+
+/* ============================================================
+   主题切换（20261122 复审 B1 收敛）—— 新页唯一行为源
+   ------------------------------------------------------------
+   观剧 / 地图 / 随笔 / 作品集及未来新页的 #btnTheme 行为统一在此；
+   旧五页（任务台/明信片/海报墙/时间线/首页）保留页内实现，其按钮
+   带 data-theme-bound="1" 标记，本模块遇到标记即整体跳过，
+   避免双绑与主题初值互相覆盖。幂等、零外部依赖。
+   ============================================================ */
+(function(){
+  var KEY = "wb_theme_v1";
+  function wbThemeBtnSync(b){
+    if(!b) return;
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    b.setAttribute("aria-pressed", dark ? "true" : "false");
+    var sun='<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+    var contrast='<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>';
+    b.innerHTML = (dark?sun:contrast) + " 切换主题";
+    var title = dark ? "当前：暗色主题 · 点击切换为亮色" : "当前：亮色主题 · 点击切换为暗色";
+    b.title = title; b.setAttribute("aria-label", title);
+  }
+  function wbThemeApply(t){
+    try{
+      var de = document.documentElement;
+      if(de) de.setAttribute("data-theme", t==="dark"?"dark":"light");
+      var m = document.querySelector('meta[name="theme-color"]');
+      if(m) m.setAttribute("content", t==="dark" ? "#0f1320" : "#4F7CFF");
+      wbThemeBtnSync(document.getElementById("btnTheme"));
+    }catch(e){}   /* 主题非关键路径：异常环境（如测试沙箱）静默跳过 */
+  }
+  function wbThemeInit(){
+    var b = document.getElementById("btnTheme");
+    if(!b || b.getAttribute("data-theme-bound") === "1") return;   /* 旧页内联实现自管 */
+    if(b.getAttribute("data-wb-theme") === "1") return;            /* 幂等 */
+    b.setAttribute("data-wb-theme","1");
+    b.addEventListener("click", function(){
+      var cur = document.documentElement.getAttribute("data-theme")==="dark"?"dark":"light";
+      var next = cur==="dark" ? "light" : "dark";
+      wbThemeApply(next);
+      try{ localStorage.setItem("wb_theme_v1",next); }catch(e){}
+    });
+    try{
+      var t0=null; try{ t0=localStorage.getItem(KEY); }catch(e){}
+      wbThemeApply(t0 || ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark":"light"));
+    }catch(e){}
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wbThemeInit);
+  else wbThemeInit();
 })();
 /* <<< SITE-NAV:END */
 </script>
