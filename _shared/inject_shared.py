@@ -1,24 +1,29 @@
 # -*- coding: utf-8 -*-
 """
-把 _shared 下的共享代码内联进七个单文件 HTML（含 index.html——它是任务管理台.html 的逐字节副本）。
+把 _shared 下的共享代码内联进单文件 HTML。
 改完源文件后运行：  python3 _shared/inject_shared.py
 单文件 HTML 仍保持零依赖、可离线、双击即用（内容是内联的，不是 <src> 引用）。
 
-四块，互不影响（2026-11-04 站点统一；2026-11-16 新增第 4 块）：
-  1) SHARED  —— shared.js，仅任务管理台 / 明信片追踪 / index.html 三页（云同步公共层）
-       ⚠️ 不可注入海报墙与门户页 home.html：shared.js 的 esc/toast/setCloudStatus 等顶层声明
-          与海报墙同名，整块注入会 SyntaxError 白屏（已实测 6 处冲突）。
-  2) SITE-NAV-HTML —— site-nav-static.html，六页共用，位于 <body> 开头。
+index.html 契约（2026-11-22 归属审查 P1 改版）：**index.html = home.html 的逐字节副本**
+（根域名入口 = 门户）。main() 末尾自动执行该副本，无需手动 cp；verify_release.py 断言。
+
+五块，互不影响（2026-11-04 站点统一；2026-11-16 新增第 4 块；2026-11-22 起第 5 块 TIMELINE-CORE）：
+  1) SHARED  —— shared.js，仅任务管理台 / 明信片追踪 两页（云同步公共层）
+       ⚠️ 不可注入海报墙与门户页 home.html / index.html（=home 副本）：shared.js 的
+          esc/toast/setCloudStatus 等顶层声明与海报墙同名，整块注入会 SyntaxError 白屏
+          （已实测 6 处冲突）。
+  2) SITE-NAV-HTML —— site-nav-static.html，十页共用，位于 <body> 开头。
        导航条 HTML + CSS 静态渲染，首屏解析即存在，避免 JS 在 DOMContentLoaded 才插入
        造成的「旧版任务台画面闪一下」（实测 FCP 1220ms / DCL 1555ms）。
-  3) SITE-NAV —— site-nav.js，六页共用（行为层：当前页高亮 + 站点级 PWA 注册）。
+  3) SITE-NAV —— site-nav.js，十页共用（行为层：当前页高亮 + 站点级 PWA 注册）。
        不再创建/插入导航条本体；与 SITE-NAV-HTML 配对使用。
-  4) MODAL-A11Y —— modal-a11y.js，四页共用（任务台 / 明信片 / index / 海报墙）。
+  4) TIMELINE-CORE —— timeline-core.js，时间线页 + 门户 home.html（index 随副本继承）。
+  5) MODAL-A11Y —— modal-a11y.js，三页共用（任务台 / 明信片 / 海报墙）。
        2026-11-16 遗留风险修复：弹窗无障碍 IIFE 曾同时存在于 shared.js 与海报墙
-       （手抄的第二份），改共享层极易漏同步。现收敛为唯一源文件，四页都由本注入器
+       （手抄的第二份），改共享层极易漏同步。现收敛为唯一源文件，各页都由本注入器
        生成，verify_release.py 逐字节比对，漂移会直接让发布门禁失败。
        海报墙因 confirmWall 动态插入/移除需要 childList 兜底，用 a11y_src(True)
-       把配置位翻成 true；其余三页保持 false，行为与 11-15 版一致。
+       把配置位翻成 true；其余两页保持 false，行为与 11-15 版一致。
 
 铁律：凡进这四块的代码必须同时写进对应源文件，否则下次 inject 整块覆盖。
 """
@@ -46,8 +51,7 @@ BLOCKS = [
         "name": "SHARED",
         "src": os.path.join(HERE, "shared.js"),
         "targets": [os.path.join(PROJ, "任务管理台.html"),
-                    os.path.join(PROJ, "明信片追踪.html"),
-                    os.path.join(PROJ, "index.html")],
+                    os.path.join(PROJ, "明信片追踪.html")],
         "begin": "/* >>> SHARED:BEGIN —— 由 _shared/shared.js 自动生成，请勿直接编辑本块 */",
         "end":   "/* <<< SHARED:END */",
     },
@@ -96,8 +100,7 @@ BLOCKS = [
         "src": A11Y_FILE,
         "targets": [os.path.join(PROJ, "任务管理台.html"),
                     os.path.join(PROJ, "明信片追踪.html"),
-                    os.path.join(PROJ, "书影音海报墙.html"),
-                    os.path.join(PROJ, "index.html")],
+                    os.path.join(PROJ, "书影音海报墙.html")],
         "begin": "/* >>> MODAL-A11Y:BEGIN —— 由 _shared/modal-a11y.js 自动生成，请勿直接编辑本块 */",
         "end":   "/* <<< MODAL-A11Y:END */",
         "render": lambda p: a11y_src(os.path.basename(p) == "书影音海报墙.html"),
@@ -171,6 +174,21 @@ def main():
     if failed:
         print("注入失败（标记块异常）:", failed)
         sys.exit(1)
+    # 2026-11-22 归属审查 P1：index.html 契约由「任务台副本」改为「门户副本」。
+    # 注入完成后自动同步，保证 SITE-NAV 等块在 home 更新后 index 立即跟进，杜绝漂移。
+    home_p, idx_p = os.path.join(PROJ, "home.html"), os.path.join(PROJ, "index.html")
+    if os.path.exists(home_p):
+        hb = io.open(home_p, "rb").read()
+        ib = io.open(idx_p, "rb").read() if os.path.exists(idx_p) else None
+        if ib != hb:
+            tmp = idx_p + ".inject.tmp"
+            with io.open(tmp, "wb") as f:
+                f.write(hb)
+            os.replace(tmp, idx_p)
+            print("[INDEX-COPY] index.html ← home.html（逐字节副本，有更新）")
+            changed.append("index.html")
+        else:
+            print("[INDEX-COPY] index.html ← home.html（无变化）")
     print("完成：%d 个页面文件有改动" % len(set(changed)))
 
 

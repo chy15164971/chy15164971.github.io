@@ -7,14 +7,15 @@
     python3 _shared/verify_release.py --tokens PATH   # 指定 design_tokens.css（默认 vault 那份）
 
 检查项：
-  1. index.html 必须是 任务管理台.html 的逐字节副本（发布契约铁律）
-  2. 29 个共享内联块（SHARED×3 + SITE-NAV-HTML×10 + SITE-NAV×10 + MODAL-A11Y×4 + TIMELINE-CORE×2，20261122 博客合并后）与源文件逐字节一致，
+  1. index.html 必须是 home.html 的逐字节副本（2026-11-22 归属审查 P1：根域名入口=门户）
+  2. 共享内联块（SHARED×2 + SITE-NAV-HTML×10 + SITE-NAV×10 + TIMELINE-CORE×2 + MODAL-A11Y×3，
+     2026-11-22 归属审查 P1 起 index=home 副本不再注入 SHARED/MODAL-A11Y）与源文件逐字节一致，
      且每页每个块**恰好一份**（重复会让同一 <script> 出现两份顶层 const → 白屏）
   3. 8 页 SITE-NAV-HTML 静态块紧贴 <body> 开头（防止退回 JS 延迟插入导致首屏闪烁）
   4. 8 页 SHARED TOKENS 标记区与 design_tokens.css 规范块一致
   5. sw.js PRECACHE 里列出的本地文件必须真实存在
   6. 导航品牌必须是可点击 <a>（D-16 回归守卫）
-  7. 弹窗无障碍唯一源守卫（2026-11-16）：四页各恰好一份 MODAL-A11Y、门户零份、
+  7. 弹窗无障碍唯一源守卫（2026-11-16）：三页各恰好一份 MODAL-A11Y、门户（home 与其副本 index）零份、
      shared.js 内不再有第二份副本、海报墙未注入整份 SHARED（防白屏）
 
 退出码：0 = 全通过；1 = 任一失败。只读，不改任何文件。
@@ -40,7 +41,7 @@ if "--tokens" in args:
 
 BLOCKS = [
     ("SHARED", "shared.js",
-     ["任务管理台.html", "明信片追踪.html", "index.html"],
+     ["任务管理台.html", "明信片追踪.html"],
      "/* >>> SHARED:BEGIN —— 由 _shared/shared.js 自动生成，请勿直接编辑本块 */",
      "/* <<< SHARED:END */"),
     ("SITE-NAV-HTML", "site-nav-static.html",
@@ -56,11 +57,11 @@ BLOCKS = [
      "/* >>> TIMELINE-CORE:BEGIN —— 由 _shared/timeline-core.js 自动生成，请勿直接编辑本块 */",
      "/* <<< TIMELINE-CORE:END */"),
     ("MODAL-A11Y", "modal-a11y.js",
-     ["任务管理台.html", "明信片追踪.html", "书影音海报墙.html", "index.html"],
+     ["任务管理台.html", "明信片追踪.html", "书影音海报墙.html"],
      "/* >>> MODAL-A11Y:BEGIN —— 由 _shared/modal-a11y.js 自动生成，请勿直接编辑本块 */",
      "/* <<< MODAL-A11Y:END */"),
 ]
-A11Y_PAGES = ["任务管理台.html", "明信片追踪.html", "书影音海报墙.html", "index.html"]
+A11Y_PAGES = ["任务管理台.html", "明信片追踪.html", "书影音海报墙.html"]
 ALL_PAGES = ["任务管理台.html", "明信片追踪.html", "书影音海报墙.html", "观剧记录.html", "旅行地图.html", "随笔.html", "作品集.html", "时间线.html", "home.html", "index.html"]
 TOKEN_START = "/* === SHARED TOKENS START === */"
 TOKEN_END = "/* === SHARED TOKENS END === */"
@@ -92,12 +93,12 @@ def main():
             bad("页面存在性", n)
             return
 
-    # 1) 副本契约
-    a, b = os.path.join(REPO, "index.html"), os.path.join(REPO, "任务管理台.html")
+    # 1) 副本契约（2026-11-22 归属审查 P1：根入口=门户，index 由注入器自动同步）
+    a, b = os.path.join(REPO, "index.html"), os.path.join(REPO, "home.html")
     if md5(a) == md5(b):
-        ok("index ≡ 任务管理台（逐字节）", md5(a))
+        ok("index ≡ home（逐字节）", md5(a))
     else:
-        bad("index ≡ 任务管理台（逐字节）", "%s != %s" % (md5(a), md5(b)))
+        bad("index ≡ home（逐字节）", "%s != %s（跑 python3 _shared/inject_shared.py 自动同步）" % (md5(a), md5(b)))
 
     # 2) 25 个共享内联块（MODAL-A11Y 按页面渲染，海报墙 childList=true；TIMELINE-CORE 仅时间线页 + 首页）
     # 2026-11-22 审查修复：源文件路径此前绑在 HERE（脚本自身目录），--repo 只换了产物目录，
@@ -129,11 +130,8 @@ def main():
                 bad("内联块不一致", "%s / %s (%dB vs %dB)" % (name, t, len(m.group(1)), len(src)))
             else:
                 total += 1
-    if total == 25:
-        ok("25 个共享内联块与源文件逐字节一致", "25/25")
-    elif total == sum(len(b[2]) for b in BLOCKS):
-        # 20261122 博客合并：总数由 25（3+8+8+4+2）扩为 29（SITE-NAV 两块随 10 页 +2×2）。
-        # 改为按 BLOCKS 各块 targets 数动态求和，页面清单再扩时不再改这里。
+    if total == sum(len(b[2]) for b in BLOCKS):
+        # 20261122 博客合并：总数按 BLOCKS 各块 targets 数动态求和，页面清单再扩时不再改这里。
         ok("%d 个共享内联块与源文件逐字节一致" % total, "%d/%d" % (total, total))
     else:
         bad("共享内联块总数", "%d/%d" % (total, sum(len(b[2]) for b in BLOCKS)))
@@ -177,8 +175,10 @@ def main():
                     bad("SHARED TOKENS 不一致", t)
                 else:
                     hits += 1
-            if hits == 8:
-                ok("8 页 SHARED TOKENS 与 design_tokens.css 一致", "8/8")
+            # 2026-11-22：hits==8 是历史死分支（ALL_PAGES 扩页后全部 10 页都有标记区），
+            # 改为动态口径，缺页/多页都会在这里如实报数。
+            if hits == len(ALL_PAGES):
+                ok("%d 页 SHARED TOKENS 与 design_tokens.css 一致" % len(ALL_PAGES), "%d/%d" % (hits, len(ALL_PAGES)))
 
     # 5) PRECACHE 文件存在性
     sw_path = os.path.join(REPO, "sw.js")
@@ -246,6 +246,9 @@ def main():
     if "/* >>> MODAL-A11Y:BEGIN" in home:
         bad("门户不应注入弹窗无障碍块", "home.html")
         a11y_ok = False
+    if "/* >>> MODAL-A11Y:BEGIN" in read(os.path.join(REPO, "index.html")):
+        bad("门户不应注入弹窗无障碍块", "index.html（=home 副本）")
+        a11y_ok = False
     shared = read(os.path.join(src_dir, "shared.js"))
     if "new MutationObserver" in shared:
         bad("shared.js 仍有第二份无障碍 IIFE", "单一事实源被破坏")
@@ -258,7 +261,7 @@ def main():
         bad("海报墙缺 childList 兜底", "confirmWall 动态插入会失效")
         a11y_ok = False
     if a11y_ok:
-        ok("弹窗无障碍唯一源守卫", "四页各一份 / 门户零份 / shared.js 无副本 / 海报墙 childList 开启")
+        ok("弹窗无障碍唯一源守卫", "三页各一份 / 门户与副本零份 / shared.js 无副本 / 海报墙 childList 开启")
 
     print("-" * 60)
     if fails:

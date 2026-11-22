@@ -664,6 +664,7 @@
         </div>
       </div>
       <div class="chips" id="chips"></div>
+      <p style="margin:6px 2px 0;font-size:12px;color:var(--ink-soft,#8a93a6)">💡 还在读 / 追 / 听的，进度在任务台「进度」视图管理；完成后在这里留条记录，时间线才会收录该事件</p>
     </div>
 
     <div id="viewWall">
@@ -4411,7 +4412,7 @@ cloudBoot();   /* 云同步启动：读配置 → 首次拉取合并（async，�
   function currentPage(){
     var f = "";
     try { f = decodeURIComponent((location.pathname.split("/").pop() || "index.html")).toLowerCase(); } catch(e){ f = "index.html"; }
-    if (!f || f === "index.html") return "tasks";        /* 根入口仍是任务台副本 */
+    if (!f || f === "index.html") return "home";        /* 2026-11-22 P1：根入口=门户副本 */
     if (f.indexOf("home") >= 0) return "home";
     if (f.indexOf("任务管理台") >= 0 || f.indexOf("taskhub") >= 0) return "tasks";
     if (f.indexOf("明信片") >= 0 || f.indexOf("postcard") >= 0) return "postcards";

@@ -3394,7 +3394,7 @@ function pushTomb(id){ const s=String(id||""); if(!s) return; const i=deletedIds
   function currentPage(){
     var f = "";
     try { f = decodeURIComponent((location.pathname.split("/").pop() || "index.html")).toLowerCase(); } catch(e){ f = "index.html"; }
-    if (!f || f === "index.html") return "tasks";        /* 根入口仍是任务台副本 */
+    if (!f || f === "index.html") return "home";        /* 2026-11-22 P1：根入口=门户副本 */
     if (f.indexOf("home") >= 0) return "home";
     if (f.indexOf("任务管理台") >= 0 || f.indexOf("taskhub") >= 0) return "tasks";
     if (f.indexOf("明信片") >= 0 || f.indexOf("postcard") >= 0) return "postcards";
@@ -9746,6 +9746,9 @@ function renderMedia(){
   // 统计卡口径：主数字=进行中（在读/在追/在听），已完成不再计入，另以副标注「已完成 N」呈现
   const mActive=a=>a.filter(c=>!mediaDone(c)&&!c.abandoned).length, mDone=a=>a.filter(c=>mediaDone(c)&&!c.abandoned).length, mAb=a=>a.filter(c=>c.abandoned).length;
   const mStat=(act,doneN,abN,label,color)=>`<div class="media-stat"><div class="n" style="color:${color}">${act}</div><div class="l">${label}${doneN?`<span class="msub">已完成 ${doneN}</span>`:""}${abN?`<span class="msub">已放弃 ${abN}</span>`:""}</div></div>`;
+  // 2026-11-22 归属审查 P2（方案2 引导文案）：media（进行中）与海报墙（完成记录）为同域两段式，
+  // 加一句流转引导，避免「看完不知道去哪记」。静态可点链接，不新增数据交互。
+  html+=`<div class="media-hitbar" style="margin:0 0 10px">💡 看完 / 读完 / 听完后，到 <a class="mitem is-link" href="书影音海报墙.html" rel="noopener" style="text-decoration:underline">书影音海报墙</a> 留下完成记录与感想（时间线会收录该事件）</div>`;
   html+=`<div class="media-stats">
     ${mStat(mActive(books),mDone(books),mAb(books),"在读书籍","var(--pri)")}
     ${mStat(mActive(tvs),mDone(tvs),mAb(tvs),"在追剧集","var(--c4)")}

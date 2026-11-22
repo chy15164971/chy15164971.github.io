@@ -1425,7 +1425,7 @@ migrateDiaryKeys().then(refreshCounts).catch(refreshCounts);
   function currentPage(){
     var f = "";
     try { f = decodeURIComponent((location.pathname.split("/").pop() || "index.html")).toLowerCase(); } catch(e){ f = "index.html"; }
-    if (!f || f === "index.html") return "tasks";        /* 根入口仍是任务台副本 */
+    if (!f || f === "index.html") return "home";        /* 2026-11-22 P1：根入口=门户副本 */
     if (f.indexOf("home") >= 0) return "home";
     if (f.indexOf("任务管理台") >= 0 || f.indexOf("taskhub") >= 0) return "tasks";
     if (f.indexOf("明信片") >= 0 || f.indexOf("postcard") >= 0) return "postcards";
