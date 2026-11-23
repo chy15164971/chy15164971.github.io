@@ -21,7 +21,9 @@ const SENT_CACHE="wb-remind-sent";
    撤销时原位恢复条目并移除 builtin 墓碑。单页 HTML 字节变化，按既定约定升版本强制重新预缓存。 */
 /* v44（2026-11-23 页面设置）：导航条齿轮弹层支持页面显隐/自定义入口/排序，十页共享块重写，
    首页卡片随设置隐藏；APP_CACHE 升版强制重新预缓存。 */
-const APP_CACHE="wb-app-v44";
+/* v45（2026-11-23 云同步修复）：「立即同步」按钮补上从输入框回读 Token/Gist 并保存，
+   修复换 Token 后同步仍报「token 无效」（旧实现用的是内存里的旧值）。 */
+const APP_CACHE="wb-app-v45";
 /* v32（2026-11-22 P2 打磨）：八页 HTML / timeline-core 字节变化。
    SW 级（全站审查 P2）：① 预缓存失败不再 console.warn 后照常 activate——改为 throw 让
    install 失败，浏览器会按生命周期自动重试；否则弱网下某页预缓存失败即永久缺页，
